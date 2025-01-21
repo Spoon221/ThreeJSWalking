@@ -8,10 +8,11 @@
     "build": "vite build"
   },
   "devDependencies": {
-    "vite": "^5.3.3",
+    "vite": "^5.4.11",
     "vite-plugin-restart": "^0.4.1"
   },
   "dependencies": {
+    "cannon": "^0.6.2",
     "lil-gui": "^0.19.2",
     "three": "^0.166.1"
   }
