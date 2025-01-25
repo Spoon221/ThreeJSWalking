@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import GUI from 'lil-gui';
-import * as CANNON from 'cannon';
 
 /**
  * Base
@@ -25,19 +24,6 @@ let model = null;
 let animations = [];
 let currentAction = null;
 
-const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0);
-
-// Создаем физическое тело для игрока
-const playerShape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
-const playerBody = new CANNON.Body({
-    mass: 1,
-    position: new CANNON.Vec3(0, 1, 0)
-});
-playerBody.addShape(playerShape);
-world.addBody(playerBody);
-
-// Загрузка модели
 gltfLoader.load('/models/chel.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1;
@@ -51,7 +37,6 @@ gltfLoader.load('/models/chel.glb', (gltf) => {
     }
 });
 
-// Создаем градиентную текстуру
 const createGradientTexture = (width, height) => {
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -84,6 +69,11 @@ const floor = new THREE.Mesh(
 floor.receiveShadow = true;
 floor.rotation.x = -Math.PI * 0.5;
 scene.add(floor);
+
+const cubeGeometry = new THREE.BoxGeometry(1, 2, 1);
+const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+scene.add(cube);
 
 /**
  * Lights
@@ -196,20 +186,33 @@ const tick = () => {
     if (model) {
         model.position.add(velocity);
 
-        if (velocity.length() > 0) {
-            const targetRotationY = Math.atan2(velocity.x, velocity.z);
-            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057);
+        const modelBox = new THREE.Box3().setFromObject(model);
+        const cubeBox = new THREE.Box3().setFromObject(cube);
 
-            if (currentAction !== mixer.clipAction(animations[2])) {
+        if (modelBox.intersectsBox(cubeBox)) {
+            console.log("Collision detected!");
+            if (currentAction !== mixer.clipAction(animations[1])) {
                 currentAction.fadeOut(0.7);
-                currentAction = mixer.clipAction(animations[2]);
+                currentAction = mixer.clipAction(animations[1]);
                 currentAction.reset().fadeIn(0.7).play();
             }
         } else {
-            if (currentAction !== mixer.clipAction(animations[0])) {
-                currentAction.fadeOut(0.7);
-                currentAction = mixer.clipAction(animations[0]);
-                currentAction.reset().fadeIn(0.7).play();
+
+            if (velocity.length() > 0) {
+                const targetRotationY = Math.atan2(velocity.x, velocity.z);
+                model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057);
+
+                if (currentAction !== mixer.clipAction(animations[2])) {
+                    currentAction.fadeOut(0.7);
+                    currentAction = mixer.clipAction(animations[2]);
+                    currentAction.reset().fadeIn(0.7).play();
+                }
+            } else {
+                if (currentAction !== mixer.clipAction(animations[0])) {
+                    currentAction.fadeOut(0.7);
+                    currentAction = mixer.clipAction(animations[0]);
+                    currentAction.reset().fadeIn(0.7).play();
+                }
             }
         }
 
