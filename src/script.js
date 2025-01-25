@@ -32,7 +32,7 @@ gltfLoader.load('/models/chel.glb', (gltf) => {
     mixer = new THREE.AnimationMixer(model);
     animations = gltf.animations;
     if (animations && animations.length) {
-        currentAction = mixer.clipAction(animations[0]);
+        currentAction = mixer.clipAction(animations[1]);
         currentAction.play();
     }
 });
@@ -73,6 +73,7 @@ scene.add(floor);
 const cubeGeometry = new THREE.BoxGeometry(1, 2, 1);
 const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
 const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+cube.position.z =1
 scene.add(cube);
 
 /**
@@ -191,26 +192,39 @@ const tick = () => {
 
         if (modelBox.intersectsBox(cubeBox)) {
             console.log("Collision detected!");
-            if (currentAction !== mixer.clipAction(animations[1])) {
-                currentAction.fadeOut(0.7);
-                currentAction = mixer.clipAction(animations[1]);
-                currentAction.reset().fadeIn(0.7).play();
+    
+            const newAction = mixer.clipAction(animations[0]);
+    
+            if (currentAction !== newAction) {
+                if (currentAction) {
+                    currentAction.fadeOut(0.07); 
+                }
+    
+                currentAction = newAction; 
+                currentAction.reset().fadeIn(0.01).play(); 
+                console.log("Playing animation:", animations[0].name);
             }
-        } else {
-
+    
+            if (currentAction.time < currentAction.getClip().duration / 2) {
+                currentAction.time = currentAction.getClip().duration / 2; 
+                currentAction.paused = true; 
+            }
+    
+            model.position.add(velocity.clone().multiplyScalar(-1)); 
+        }  else {
             if (velocity.length() > 0) {
                 const targetRotationY = Math.atan2(velocity.x, velocity.z);
                 model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057);
 
-                if (currentAction !== mixer.clipAction(animations[2])) {
+                if (currentAction !== mixer.clipAction(animations[3])) {
                     currentAction.fadeOut(0.7);
-                    currentAction = mixer.clipAction(animations[2]);
+                    currentAction = mixer.clipAction(animations[3]);
                     currentAction.reset().fadeIn(0.7).play();
                 }
             } else {
-                if (currentAction !== mixer.clipAction(animations[0])) {
+                if (currentAction !== mixer.clipAction(animations[1])) {
                     currentAction.fadeOut(0.7);
-                    currentAction = mixer.clipAction(animations[0]);
+                    currentAction = mixer.clipAction(animations[1]);
                     currentAction.reset().fadeIn(0.7).play();
                 }
             }
