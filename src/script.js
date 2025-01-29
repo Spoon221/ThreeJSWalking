@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import GUI from 'lil-gui';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
-import typefaceFont from 'three/examples/fonts/helvetiker_regular.typeface.json'
 
 /**
  * Base
@@ -28,7 +26,7 @@ let currentAction = null;
 
 const colliderModels = []; 
 const colliderPositions = [
-    { x: 6, y: 0, z: 20 },
+    { x: 5, y: 0, z: 20 },
     { x: 17, y: 0, z: 20 },
 ];
 
@@ -62,14 +60,13 @@ gltfLoader.load('/models/chel.glb', (gltf) => {
     }
 });
 
-// Загружаем модели и добавляем их в массив colliderModels
 colliderPositions.forEach(position => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
         colliderModel.rotation.y = -Math.PI / 2.9;
         scene.add(colliderModel);
-        colliderModels.push(colliderModel); // Добавляем модель в массив
+        colliderModels.push(colliderModel); 
 
         const shadowSizes = [
             { width: 1.5, height: 0.75 },
@@ -87,35 +84,17 @@ colliderPositions.forEach(position => {
 /**
  * Floor
  */
-const createGradientTexture = (width, height) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
 
-    const gradient = context.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#008000');
-    gradient.addColorStop(1, '#36454F');
+const loader = new GLTFLoader();
+loader.load('/models/pol.glb', (gltf) => {
+    const floor = gltf.scene;
+    floor.scale.set(1, 1, 1); 
+    floor.position.set(0, 0, 0); 
 
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-
-    return new THREE.CanvasTexture(canvas);
-};
-
-const gradientTexture = createGradientTexture(512, 512);
-
-const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(200, 200),
-    new THREE.MeshStandardMaterial({
-        map: gradientTexture,
-        metalness: 0,
-        roughness: 0.5
-    })
-);
-floor.receiveShadow = true;
-floor.rotation.x = -Math.PI * 0.5;
-scene.add(floor);
+    scene.add(floor);
+}, undefined, (error) => {
+    console.error('Ошибка загрузки модели:', error);
+});
 
 /**
  * Lights
@@ -152,74 +131,29 @@ const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 
 camera.position.set(0, 2, 5);
 scene.add(camera);
 
-const fontLoader = new FontLoader();
-
-// Загружаем шрифт
-fontLoader.load(typefaceFont, (font) => {
-    console.log('Font loaded successfully');
-
-    // Создаем кнопку после загрузки шрифта
-    createButton({ x: 5, y: 0.05, z: 5 }, 'O p e n', font);
-}, undefined, (error) => {
-    console.error('Error loading font:', error);
-});
-
-function createTextCanvas(text, font) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    context.font = 'bold 24px ' + font; // Устанавливаем шрифт
-    const textWidth = context.measureText(text).width;
-    canvas.width = textWidth; 
-    canvas.height = 100; 
-
-    context.fillStyle = 'white';
-    context.textAlign = 'center'; 
-    context.textBaseline = 'middle'; 
-    context.fillText(text, textWidth / 2, canvas.height / 2);
-    
-    return canvas;
-}
-
-function createButton(position, text) {
-    const buttonWidth = 2; 
+function createButton(position) {
+    const buttonWidth = 3; 
     const buttonHeight = 2; 
 
     const buttonGeometry = new THREE.PlaneGeometry(buttonWidth, buttonHeight); 
-    const buttonMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+    const buttonMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x00ff00, 
+        side: THREE.DoubleSide, 
+        transparent: true, // Включаем прозрачность
+        opacity: 0 // Устанавливаем полную прозрачность
+    });
     const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
     buttonMesh.isButton = true; 
     buttonMesh.position.set(position.x, position.y, position.z);
-    buttonMesh.rotation.x = 1.8; 
-
-    const textCanvas = createTextCanvas(text);
-    const textWidth = textCanvas.width;
-    const textHeight = textCanvas.height;
-
-    const textTexture = new THREE.CanvasTexture(textCanvas);
-    const textGeometry = new THREE.PlaneGeometry(textWidth / 50, textHeight / 50);
-    const textMaterial = new THREE.MeshBasicMaterial({ 
-        map: textTexture, 
-        side: THREE.DoubleSide,
-        transparent: true, 
-        opacity: 1,
-        
-    });
-    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-    textMesh.position.set(0, -0.25, -0.15); 
-    textMesh.rotation.set(
-        THREE.MathUtils.degToRad(0),  
-        THREE.MathUtils.degToRad(180),  
-        THREE.MathUtils.degToRad(180)  
-    );
-
-    buttonMesh.add(textMesh);
+    buttonMesh.rotation.x = 1.5707; 
+    buttonMesh.rotation.y = 3.1164; 
+    buttonMesh.rotation.z = 0.49; 
     scene.add(buttonMesh);
 
     return buttonMesh;
 }
 
-createButton({ x: 5, y: 0.05, z: 5 }, 'O p e n');
+createButton({ x: 8.5, y: 0.05, z: 22 });
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -349,6 +283,7 @@ const tick = () => {
                 if (currentAction !== mixer.clipAction(animations[3])) {
                     currentAction.fadeOut(0.7);
                     currentAction = mixer.clipAction(animations[3]);
+                    currentAction.timeScale = 1.3;
                     currentAction.reset().fadeIn(0.7).play();
                 }
             } else {
