@@ -24,7 +24,7 @@ let model = null;
 let animations = [];
 let currentAction = null;
 
-const colliderModels = []; 
+const colliderModels = [];
 const colliderPositions = [
     { x: 5, y: 0, z: 20 },
     { x: 17, y: 0, z: 20 },
@@ -41,15 +41,15 @@ function createShadowMesh(size, position, opacity) {
 
     const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
     shadowMesh.scale.set(2.45, size.height / size.width + 1, 2.45);
-    shadowMesh.position.set(position.x + 2, 0.01, position.z - 1); 
-    shadowMesh.rotation.x = -Math.PI / 2; 
-    shadowMesh.rotation.z = -Math.PI / 1.2; 
+    shadowMesh.position.set(position.x + 2, 0.01, position.z - 1);
+    shadowMesh.rotation.x = -Math.PI / 2;
+    shadowMesh.rotation.z = -Math.PI / 1.2;
     return shadowMesh;
 }
 
 gltfLoader.load('/models/chel.glb', (gltf) => {
     model = gltf.scene;
-    model.position.y = 0.3; 
+    model.position.y = 0.3;
     scene.add(model);
 
     mixer = new THREE.AnimationMixer(model);
@@ -60,13 +60,27 @@ gltfLoader.load('/models/chel.glb', (gltf) => {
     }
 });
 
+/**
+ * Floor
+ */
+const loader = new GLTFLoader();
+loader.load('/models/pol.glb', (gltf) => {
+    const floor = gltf.scene;
+    floor.scale.set(1, 1, 1);
+    floor.position.set(0, 0, 0);
+
+    scene.add(floor);
+}, undefined, (error) => {
+    console.error('Ошибка загрузки модели:', error);
+});
+
 colliderPositions.forEach(position => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
         colliderModel.rotation.y = -Math.PI / 2.9;
         scene.add(colliderModel);
-        colliderModels.push(colliderModel); 
+        colliderModels.push(colliderModel);
 
         const shadowSizes = [
             { width: 1.5, height: 0.75 },
@@ -81,20 +95,34 @@ colliderPositions.forEach(position => {
     });
 });
 
-/**
- * Floor
- */
+const wallLoader = new GLTFLoader();
+const wallCount = 4;
+const wallThickness = 1.95;
 
-const loader = new GLTFLoader();
-loader.load('/models/pol.glb', (gltf) => {
-    const floor = gltf.scene;
-    floor.scale.set(1, 1, 1); 
-    floor.position.set(0, 0, 0); 
+const rotations = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 
-    scene.add(floor);
-}, undefined, (error) => {
-    console.error('Ошибка загрузки модели:', error);
-});
+for (let i = 0; i < wallCount; i++) {
+    wallLoader.load('/models/wall.glb', (gltf) => {
+        const wall = gltf.scene;
+        wall.scale.set(1, 1, wallThickness);
+        wall.rotation.y = rotations[i];
+
+        if (i === 0) {
+            wall.position.set(0, 0, 2);
+        } else if (i === 1) {
+            wall.position.set(2, 0, 0);
+        } else if (i === 2) {
+            wall.position.set(0, 0, -2);
+        } else if (i === 3) {
+            wall.position.set(-2, 0, 0);
+        }
+
+        colliderModels.push(wall);
+        scene.add(wall);
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки модели:', error);
+    });
+}
 
 /**
  * Lights
@@ -127,27 +155,27 @@ window.addEventListener('resize', () => {
 /**
  * Camera
  */
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(70, sizes.width / sizes.height, 0.1, 1000);
 camera.position.set(0, 2, 5);
 scene.add(camera);
 
 function createButton(position) {
-    const buttonWidth = 3; 
-    const buttonHeight = 2; 
+    const buttonWidth = 3;
+    const buttonHeight = 2;
 
-    const buttonGeometry = new THREE.PlaneGeometry(buttonWidth, buttonHeight); 
-    const buttonMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff00, 
-        side: THREE.DoubleSide, 
-        transparent: true, // Включаем прозрачность
-        opacity: 0 // Устанавливаем полную прозрачность
+    const buttonGeometry = new THREE.PlaneGeometry(buttonWidth, buttonHeight);
+    const buttonMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0
     });
     const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
-    buttonMesh.isButton = true; 
+    buttonMesh.isButton = true;
     buttonMesh.position.set(position.x, position.y, position.z);
-    buttonMesh.rotation.x = 1.5707; 
-    buttonMesh.rotation.y = 3.1164; 
-    buttonMesh.rotation.z = 0.49; 
+    buttonMesh.rotation.x = 1.5707;
+    buttonMesh.rotation.y = 3.1164;
+    buttonMesh.rotation.z = 0.49;
     scene.add(buttonMesh);
 
     return buttonMesh;
@@ -163,11 +191,11 @@ window.addEventListener('click', (event) => {
     mouse.y = -(event.clientY / sizes.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(scene.children);
-    let buttonClicked = false; 
+    let buttonClicked = false;
 
     intersects.forEach(intersect => {
-        if (intersect.object.isButton) { 
-            buttonClicked = true; 
+        if (intersect.object.isButton) {
+            buttonClicked = true;
         }
     });
 
@@ -180,8 +208,6 @@ window.addEventListener('click', (event) => {
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({ canvas: canvas });
-renderer.shadowMap.enabled = true; 
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
