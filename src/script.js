@@ -158,6 +158,40 @@ window.addEventListener('resize', () => {
 const camera = new THREE.PerspectiveCamera(70, sizes.width / sizes.height, 0.1, 1000);
 camera.position.set(0, 2, 5);
 scene.add(camera);
+const raycaster = new THREE.Raycaster();
+const cameraDirection = new THREE.Vector3();
+const moveSpeed = 0.1; // Скорость движения камеры
+
+
+let lastValidCameraPosition = camera.position.clone();
+
+function updateCameraPosition() {
+    camera.getWorldDirection(cameraDirection);
+    cameraDirection.y = 0;
+    cameraDirection.normalize();
+
+    const newCameraPosition = camera.position.clone().add(cameraDirection.clone().multiplyScalar(moveSpeed));
+
+    const cameraBox = new THREE.Box3().setFromCenterAndSize(newCameraPosition, new THREE.Vector3(0.5, 0.5, 0.5));
+
+    let collisionDetected = false;
+
+    colliderModels.forEach(colliderModel => {
+        const colliderBox = new THREE.Box3().setFromObject(colliderModel);
+        if (cameraBox.intersectsBox(colliderBox)) {
+            collisionDetected = true;
+            console.log('Collision detected for camera!');
+            return;
+        }
+    });
+
+    if (!collisionDetected) {
+        lastValidCameraPosition.copy(newCameraPosition);
+        camera.position.copy(newCameraPosition);
+    } else {
+        camera.position.copy(lastValidCameraPosition);
+    }
+}
 
 function createButton(position) {
     const buttonWidth = 3;
@@ -183,7 +217,6 @@ function createButton(position) {
 
 createButton({ x: 8.5, y: 0.05, z: 22 });
 
-const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 window.addEventListener('click', (event) => {
@@ -327,6 +360,7 @@ const tick = () => {
         camera.lookAt(model.position);
     }
 
+    updateCameraPosition();
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
 };
