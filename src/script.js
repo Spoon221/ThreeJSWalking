@@ -105,7 +105,7 @@ for (let i = 0; i < wallCount; i++) {
     wallLoader.load('/models/wall.glb', (gltf) => {
         const wall = gltf.scene;
 
-        wall.scale.set(1, 1, wallThickness); 
+        wall.scale.set(1, 1, wallThickness);
 
         wall.rotation.y = rotations[i];
 
@@ -127,42 +127,25 @@ for (let i = 0; i < wallCount; i++) {
 }
 
 const imageLoader = new THREE.TextureLoader();
-const imageUrl = '/models/git.png'; 
+const imageUrl = '/models/git.png';
 
-colliderPositions.forEach((position, index) => {
-    imageLoader.load(imageUrl, (texture) => {
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            side: THREE.DoubleSide,
-            transparent: true,
-        });
-        const planeGeometry = new THREE.PlaneGeometry(3, 2);
-        const imageMesh = new THREE.Mesh(planeGeometry, material);
-        imageMesh.position.set(position.x, position.y, position.z);
-        imageMesh.rotation.y = -Math.PI / 2.9;
-
-        const folder = gui.addFolder(`Image Mesh ${index + 1}`);
-        folder.add(imageMesh.position, 'x', -10, 10).name('Position X');
-        folder.add(imageMesh.position, 'y', -10, 10).name('Position Y');
-        folder.add(imageMesh.position, 'z', -10, 10).name('Position Z');
-
-        folder.add(imageMesh.rotation, 'x', 0, Math.PI * 2).name('Rotation X');
-        folder.add(imageMesh.rotation, 'y', 0, Math.PI * 2).name('Rotation Y');
-        folder.add(imageMesh.rotation, 'z', 0, Math.PI * 2).name('Rotation Z');
-
-        const scaleFolder = folder.addFolder('Scale');
-        scaleFolder.add(imageMesh.scale, 'x', 0.1, 5).name('Scale X');
-        scaleFolder.add(imageMesh.scale, 'y', 0.1, 5).name('Scale Y');
-        scaleFolder.add(imageMesh.scale, 'z', 0.1, 5).name('Scale Z');
-
-        folder.open(); 
-
-        scene.add(imageMesh);
-        colliderModels.push(imageMesh);
-
-    }, undefined, (error) => {
-        console.error('Ошибка загрузки текстуры:', error);
+imageLoader.load(imageUrl, (texture) => {
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        transparent: true,
     });
+    const planeGeometry = new THREE.PlaneGeometry(3, 2);
+    const imageMesh = new THREE.Mesh(planeGeometry, material);
+
+    imageMesh.position.set(0, 0, 0);
+    imageMesh.rotation.set(0, -Math.PI / 2.9, 0);
+    imageMesh.scale.set(1, 1, 1);
+
+    scene.add(imageMesh);
+
+}, undefined, (error) => {
+    console.error('Ошибка загрузки текстуры:', error);
 });
 
 /**
@@ -208,7 +191,7 @@ let lastValidCameraPosition = camera.position.clone();
 
 function updateCameraPosition() {
     camera.getWorldDirection(cameraDirection);
-    cameraDirection.y = 0; 
+    cameraDirection.y = 0;
     cameraDirection.normalize();
 
     const newCameraPosition = camera.position.clone().add(cameraDirection.clone().multiplyScalar(moveSpeed));
@@ -245,7 +228,7 @@ function createButton(position, url) {
     });
     const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
     buttonMesh.isButton = true;
-    buttonMesh.url = url; 
+    buttonMesh.url = url;
     buttonMesh.position.set(position.x, position.y, position.z);
     buttonMesh.rotation.x = 1.5707;
     buttonMesh.rotation.y = 3.1164;
