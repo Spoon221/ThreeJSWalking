@@ -105,7 +105,7 @@ for (let i = 0; i < wallCount; i++) {
     wallLoader.load('/models/wall.glb', (gltf) => {
         const wall = gltf.scene;
 
-        wall.scale.set(1, 1, wallThickness); // Обычный масштаб для остальных стен
+        wall.scale.set(1, 1, wallThickness); 
 
         wall.rotation.y = rotations[i];
 
@@ -119,21 +119,51 @@ for (let i = 0; i < wallCount; i++) {
             wall.position.set(-2, 0, 0);
         }
 
-        if (i === 2) {
-            const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); // Размеры коллайдера
-            const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false }); // Невидимый материал
-            const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
-
-            // Устанавливаем позицию коллайдера за стеной
-            collider.position.set(0, 0, -4); // Позиция за стеной (можно настроить по необходимости)
-            scene.add(collider);
-        }
         colliderModels.push(wall);
         scene.add(wall);
     }, undefined, (error) => {
         console.error('Ошибка загрузки модели:', error);
     });
 }
+
+const imageLoader = new THREE.TextureLoader();
+const imageUrl = '/models/git.png'; 
+
+colliderPositions.forEach((position, index) => {
+    imageLoader.load(imageUrl, (texture) => {
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            side: THREE.DoubleSide,
+            transparent: true,
+        });
+        const planeGeometry = new THREE.PlaneGeometry(3, 2);
+        const imageMesh = new THREE.Mesh(planeGeometry, material);
+        imageMesh.position.set(position.x, position.y, position.z);
+        imageMesh.rotation.y = -Math.PI / 2.9;
+
+        const folder = gui.addFolder(`Image Mesh ${index + 1}`);
+        folder.add(imageMesh.position, 'x', -10, 10).name('Position X');
+        folder.add(imageMesh.position, 'y', -10, 10).name('Position Y');
+        folder.add(imageMesh.position, 'z', -10, 10).name('Position Z');
+
+        folder.add(imageMesh.rotation, 'x', 0, Math.PI * 2).name('Rotation X');
+        folder.add(imageMesh.rotation, 'y', 0, Math.PI * 2).name('Rotation Y');
+        folder.add(imageMesh.rotation, 'z', 0, Math.PI * 2).name('Rotation Z');
+
+        const scaleFolder = folder.addFolder('Scale');
+        scaleFolder.add(imageMesh.scale, 'x', 0.1, 5).name('Scale X');
+        scaleFolder.add(imageMesh.scale, 'y', 0.1, 5).name('Scale Y');
+        scaleFolder.add(imageMesh.scale, 'z', 0.1, 5).name('Scale Z');
+
+        folder.open(); 
+
+        scene.add(imageMesh);
+        colliderModels.push(imageMesh);
+
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки текстуры:', error);
+    });
+});
 
 /**
  * Lights
@@ -202,7 +232,7 @@ function updateCameraPosition() {
     }
 }
 
-function createButton(position) {
+function createButton(position, url) {
     const buttonWidth = 3;
     const buttonHeight = 2;
 
@@ -215,6 +245,7 @@ function createButton(position) {
     });
     const buttonMesh = new THREE.Mesh(buttonGeometry, buttonMaterial);
     buttonMesh.isButton = true;
+    buttonMesh.url = url; 
     buttonMesh.position.set(position.x, position.y, position.z);
     buttonMesh.rotation.x = 1.5707;
     buttonMesh.rotation.y = 3.1164;
@@ -224,7 +255,7 @@ function createButton(position) {
     return buttonMesh;
 }
 
-createButton({ x: 8.5, y: 0.05, z: 22 });
+const button1 = createButton({ x: 8.5, y: 0.05, z: 22 }, 'https://github.com/Spoon221');
 
 const mouse = new THREE.Vector2();
 
@@ -238,12 +269,9 @@ window.addEventListener('click', (event) => {
     intersects.forEach(intersect => {
         if (intersect.object.isButton) {
             buttonClicked = true;
+            window.location.href = intersect.object.url;
         }
     });
-
-    if (buttonClicked) {
-        window.location.href = 'https://github.com/Spoon221';
-    }
 });
 
 /**
