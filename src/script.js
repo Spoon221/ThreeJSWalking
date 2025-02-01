@@ -104,7 +104,9 @@ const rotations = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 for (let i = 0; i < wallCount; i++) {
     wallLoader.load('/models/wall.glb', (gltf) => {
         const wall = gltf.scene;
-        wall.scale.set(1, 1, wallThickness);
+
+        wall.scale.set(1, 1, wallThickness); // Обычный масштаб для остальных стен
+
         wall.rotation.y = rotations[i];
 
         if (i === 0) {
@@ -117,6 +119,15 @@ for (let i = 0; i < wallCount; i++) {
             wall.position.set(-2, 0, 0);
         }
 
+        if (i === 2) {
+            const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); // Размеры коллайдера
+            const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false }); // Невидимый материал
+            const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
+
+            // Устанавливаем позицию коллайдера за стеной
+            collider.position.set(0, 0, -4); // Позиция за стеной (можно настроить по необходимости)
+            scene.add(collider);
+        }
         colliderModels.push(wall);
         scene.add(wall);
     }, undefined, (error) => {
@@ -127,7 +138,7 @@ for (let i = 0; i < wallCount; i++) {
 /**
  * Lights
  */
-const ambientLight = new THREE.AmbientLight(0xffffff, 2.4);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -160,19 +171,19 @@ camera.position.set(0, 2, 5);
 scene.add(camera);
 const raycaster = new THREE.Raycaster();
 const cameraDirection = new THREE.Vector3();
-const moveSpeed = 0.1; // Скорость движения камеры
+const moveSpeed = 0.1;
 
 
 let lastValidCameraPosition = camera.position.clone();
 
 function updateCameraPosition() {
     camera.getWorldDirection(cameraDirection);
-    cameraDirection.y = 0;
+    cameraDirection.y = 0; 
     cameraDirection.normalize();
 
     const newCameraPosition = camera.position.clone().add(cameraDirection.clone().multiplyScalar(moveSpeed));
 
-    const cameraBox = new THREE.Box3().setFromCenterAndSize(newCameraPosition, new THREE.Vector3(0.5, 0.5, 0.5));
+    const cameraBox = new THREE.Box3().setFromCenterAndSize(newCameraPosition, new THREE.Vector3(9, 0.2, 11.5));
 
     let collisionDetected = false;
 
@@ -180,8 +191,6 @@ function updateCameraPosition() {
         const colliderBox = new THREE.Box3().setFromObject(colliderModel);
         if (cameraBox.intersectsBox(colliderBox)) {
             collisionDetected = true;
-            console.log('Collision detected for camera!');
-            return;
         }
     });
 
