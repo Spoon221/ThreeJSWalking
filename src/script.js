@@ -47,16 +47,18 @@ function createShadowMesh(size, position, opacity) {
     return shadowMesh;
 }
 
-gltfLoader.load('/models/chel.glb', (gltf) => {
+gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
-    model.position.y = 0.3;
+    model.position.y = 1.3;
+
     scene.add(model);
 
     mixer = new THREE.AnimationMixer(model);
     animations = gltf.animations;
-    if (animations && animations.length) {
-        currentAction = mixer.clipAction(animations[1]);
-        currentAction.play();
+
+    // Создаем действие для анимации 0
+    if (animations.length > 0) {
+        currentAction = mixer.clipAction(animations[0]);
     }
 });
 
@@ -298,6 +300,19 @@ window.addEventListener('keyup', (event) => {
 const clock = new THREE.Clock();
 let previousTime = 0;
 
+// Функция для включения/выключения анимации
+function updateAnimation() {
+    if (keys.w || keys.a || keys.s || keys.d) {
+        if (currentAction && !currentAction.isRunning()) {
+            currentAction.play();
+        }
+    } else {
+        if (currentAction && currentAction.isRunning()) {
+            currentAction.stop();
+        }
+    }
+}
+
 const lerpAngle = (a, b, t) => {
     const diff = (b - a + Math.PI) % (2 * Math.PI) - Math.PI;
     return a + diff * t;
@@ -313,72 +328,32 @@ const tick = () => {
     }
 
     direction.set(0, 0, 0);
-    if (keys.w) direction.z -= 1;
-    if (keys.s) direction.z += 1;
-    if (keys.a) direction.x -= 1;
-    if (keys.d) direction.x += 1;
+    if (keys.w) direction.z += 1;
+    if (keys.s) direction.z -= 1;
+    if (keys.a) direction.x += 1;
+    if (keys.d) direction.x -= 1;
 
     direction.normalize();
     velocity.copy(direction).multiplyScalar(speed);
 
     if (model) {
+        // Обновляем позицию модели
         model.position.add(velocity);
 
-        const modelBox = new THREE.Box3().setFromObject(model);
-        let collisionDetected = false;
-
-        colliderModels.forEach(colliderModel => {
-            const colliderBox = new THREE.Box3().setFromObject(colliderModel);
-            if (modelBox.intersectsBox(colliderBox)) {
-                collisionDetected = true;
-                console.log("Collision detected!");
-
-                const newAction = mixer.clipAction(animations[0]);
-
-                if (currentAction !== newAction) {
-                    if (currentAction) {
-                        currentAction.fadeOut(0.07);
-                    }
-
-                    currentAction = newAction;
-                    currentAction.reset().fadeIn(0.01).play();
-                    console.log("Playing animation:", animations[0].name);
-                }
-
-                if (currentAction.time < currentAction.getClip().duration / 2) {
-                    currentAction.time = currentAction.getClip().duration / 2;
-                    currentAction.paused = true;
-                }
-
-                model.position.add(velocity.clone().multiplyScalar(-1));
-            }
-        });
-
-        if (!collisionDetected) {
-            if (velocity.length() > 0) {
-                const targetRotationY = Math.atan2(velocity.x, velocity.z);
-                model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057);
-
-                if (currentAction !== mixer.clipAction(animations[3])) {
-                    currentAction.fadeOut(0.7);
-                    currentAction = mixer.clipAction(animations[3]);
-                    currentAction.timeScale = 1.3;
-                    currentAction.reset().fadeIn(0.7).play();
-                }
-            } else {
-                if (currentAction !== mixer.clipAction(animations[1])) {
-                    currentAction.fadeOut(0.7);
-                    currentAction = mixer.clipAction(animations[1]);
-                    currentAction.reset().fadeIn(0.7).play();
-                }
-            }
+        // Вычисляем угол поворота на основе направления движения
+        if (direction.length() > 0) {
+            const targetRotationY = Math.atan2(velocity.x, velocity.z); // Угол в радианах
+            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057); // Плавный поворот
         }
 
-        camera.position.x = model.position.x + 3.7;
-        camera.position.z = model.position.z + 10;
-        camera.position.y = 5.4;
+        // Обновляем позицию камеры
+        const cameraOffset = new THREE.Vector3(0, 2.5, -5); // Задайте офсет камеры
+        camera.position.copy(model.position).add(cameraOffset);
         camera.lookAt(model.position);
     }
+
+    // Обновление анимации
+    updateAnimation();
 
     updateCameraPosition();
     renderer.render(scene, camera);
