@@ -50,13 +50,12 @@ function createShadowMesh(size, position, opacity) {
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1.3;
-
+    colliderModels.push(model); 
     scene.add(model);
 
     mixer = new THREE.AnimationMixer(model);
     animations = gltf.animations;
 
-    // Создаем действие для анимации 0
     if (animations.length > 0) {
         currentAction = mixer.clipAction(animations[0]);
     }
@@ -189,13 +188,13 @@ const cameraDirection = new THREE.Vector3();
 const moveSpeed = 0.1;
 
 
-let lastValidCameraPosition = camera.position.clone();
+//let lastValidCameraPosition = camera.position.clone();
 
 function updateCameraPosition() {
     camera.getWorldDirection(cameraDirection);
     cameraDirection.y = 0;
     cameraDirection.normalize();
-
+    /*
     const newCameraPosition = camera.position.clone().add(cameraDirection.clone().multiplyScalar(moveSpeed));
 
     const cameraBox = new THREE.Box3().setFromCenterAndSize(newCameraPosition, new THREE.Vector3(9, 0.2, 11.5));
@@ -215,6 +214,7 @@ function updateCameraPosition() {
     } else {
         camera.position.copy(lastValidCameraPosition);
     }
+        */
 }
 
 function createButton(position, url) {
@@ -270,7 +270,6 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
  * Movement
  */
 const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
 const speed = 0.1;
 
 const keys = {
@@ -318,6 +317,23 @@ const lerpAngle = (a, b, t) => {
     return a + diff * t;
 };
 
+
+function checkCollisions(newPosition) {
+    const playerBox = new THREE.Box3().setFromObject(model); 
+    playerBox.translate(newPosition.clone().sub(model.position)); 
+
+    for (const collider of colliderModels) {
+        if (collider === model) continue; 
+
+        const colliderBox = new THREE.Box3().setFromObject(collider); 
+        if (playerBox.intersectsBox(colliderBox)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
@@ -327,32 +343,50 @@ const tick = () => {
         mixer.update(deltaTime);
     }
 
-    direction.set(0, 0, 0);
-    if (keys.w) direction.z += 1;
-    if (keys.s) direction.z -= 1;
-    if (keys.a) direction.x += 1;
-    if (keys.d) direction.x -= 1;
+    const globalDirection = new THREE.Vector3(0, 0, 0);
+    if (keys.w) globalDirection.z += 1;
+    if (keys.a) globalDirection.x += 1; 
+    if (keys.d) globalDirection.x -= 1; 
 
-    direction.normalize();
-    velocity.copy(direction).multiplyScalar(speed);
+    globalDirection.normalize();
 
     if (model) {
-        // Обновляем позицию модели
-        model.position.add(velocity);
+        const localDirection = globalDirection.clone().applyQuaternion(model.quaternion);
+        localDirection.y = 0; 
+        localDirection.normalize();
+        velocity.copy(localDirection).multiplyScalar(speed);
 
-        // Вычисляем угол поворота на основе направления движения
-        if (direction.length() > 0) {
-            const targetRotationY = Math.atan2(velocity.x, velocity.z); // Угол в радианах
-            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057); // Плавный поворот
+        const newPosition = model.position.clone().add(velocity);
+
+        if (!checkCollisions(newPosition)) {
+            model.position.copy(newPosition); 
         }
 
-        // Обновляем позицию камеры
-        const cameraOffset = new THREE.Vector3(0, 2.5, -5); // Задайте офсет камеры
+        if (localDirection.length() > 0) {
+            const targetRotationY = Math.atan2(localDirection.x, localDirection.z); 
+            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057); 
+        }
+
+        if (keys.s) {
+            const backwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(model.quaternion);
+            backwardDirection.y = 0; 
+            backwardDirection.normalize();
+
+            const backwardVelocity = backwardDirection.clone().multiplyScalar(speed);
+            const backwardPosition = model.position.clone().add(backwardVelocity);
+
+            if (!checkCollisions(backwardPosition)) {
+                model.position.copy(backwardPosition); 
+            }
+        }
+
+        const cameraOffset = new THREE.Vector3(0, 3.2, -5); 
+        cameraOffset.applyQuaternion(model.quaternion); 
         camera.position.copy(model.position).add(cameraOffset);
+
         camera.lookAt(model.position);
     }
 
-    // Обновление анимации
     updateAnimation();
 
     updateCameraPosition();
