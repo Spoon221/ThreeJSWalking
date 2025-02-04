@@ -302,7 +302,7 @@ function createButton(position, url) {
     return buttonMesh;
 }
 
-const button1 = createButton({ x: 7, y: 0.05, z: 20.6 }, 'https://github.com/Spoon221');
+const button1 = createButton({ x: 6, y: 0.05, z: 19 }, 'https://github.com/Spoon221');
 
 const mouse = new THREE.Vector2();
 
