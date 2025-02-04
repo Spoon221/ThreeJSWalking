@@ -9,7 +9,34 @@ import GUI from 'lil-gui';
 const gui = new GUI();
 const canvas = document.querySelector('canvas.webgl');
 const scene = new THREE.Scene();
+/**
+ * Fog
+ */
+const fogColor = new THREE.Color(0xaaaaaa);
+const nearFog = 1; 
+const farFog = 50; 
+scene.fog = new THREE.Fog(fogColor, nearFog, farFog);
 
+
+const grassGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+const grassMaterial = new THREE.MeshBasicMaterial({ color: 0x004d00 }); 
+
+function addGrass() {
+    const grassCount = 400; 
+    const groundY = 0;
+    const radius = 50; 
+
+    for (let i = 0; i < grassCount; i++) {
+        const x = Math.random() * radius * 2 - radius; 
+        const z = Math.random() * radius * 2 - radius; 
+        const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+        grass.position.set(x, groundY + 0.05, z); 
+
+        scene.add(grass);
+    }
+}
+
+addGrass();
 /**
  * Models
  */
@@ -26,8 +53,7 @@ let currentAction = null;
 
 const colliderModels = [];
 const colliderPositions = [
-    { x: 5, y: 0, z: 20 },
-    { x: 17, y: 0, z: 20 },
+    { x: 10.5, y: 0, z: 23.5 },
 ];
 
 function createShadowMesh(size, position, opacity) {
@@ -41,7 +67,7 @@ function createShadowMesh(size, position, opacity) {
 
     const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
     shadowMesh.scale.set(2.45, size.height / size.width + 1, 2.45);
-    shadowMesh.position.set(position.x + 2, 0.01, position.z - 1);
+    shadowMesh.position.set(position.x - 2, 0.01, position.z + 0.5);
     shadowMesh.rotation.x = -Math.PI / 2;
     shadowMesh.rotation.z = -Math.PI / 1.2;
     return shadowMesh;
@@ -49,8 +75,9 @@ function createShadowMesh(size, position, opacity) {
 
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
-    model.position.y = 1.3;
-    colliderModels.push(model); 
+    model.position.y = 1.6;
+    model.scale.set(1.55, 1.55, 1.55);
+    colliderModels.push(model);
     scene.add(model);
 
     mixer = new THREE.AnimationMixer(model);
@@ -79,7 +106,7 @@ colliderPositions.forEach(position => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
-        colliderModel.rotation.y = -Math.PI / 2.9;
+        colliderModel.rotation.y = 90;
         scene.add(colliderModel);
         colliderModels.push(colliderModel);
 
@@ -185,36 +212,11 @@ camera.position.set(0, 2, 5);
 scene.add(camera);
 const raycaster = new THREE.Raycaster();
 const cameraDirection = new THREE.Vector3();
-const moveSpeed = 0.1;
-
-
-//let lastValidCameraPosition = camera.position.clone();
 
 function updateCameraPosition() {
     camera.getWorldDirection(cameraDirection);
     cameraDirection.y = 0;
     cameraDirection.normalize();
-    /*
-    const newCameraPosition = camera.position.clone().add(cameraDirection.clone().multiplyScalar(moveSpeed));
-
-    const cameraBox = new THREE.Box3().setFromCenterAndSize(newCameraPosition, new THREE.Vector3(9, 0.2, 11.5));
-
-    let collisionDetected = false;
-
-    colliderModels.forEach(colliderModel => {
-        const colliderBox = new THREE.Box3().setFromObject(colliderModel);
-        if (cameraBox.intersectsBox(colliderBox)) {
-            collisionDetected = true;
-        }
-    });
-
-    if (!collisionDetected) {
-        lastValidCameraPosition.copy(newCameraPosition);
-        camera.position.copy(newCameraPosition);
-    } else {
-        camera.position.copy(lastValidCameraPosition);
-    }
-        */
 }
 
 function createButton(position, url) {
@@ -240,7 +242,7 @@ function createButton(position, url) {
     return buttonMesh;
 }
 
-const button1 = createButton({ x: 8.5, y: 0.05, z: 22 }, 'https://github.com/Spoon221');
+const button1 = createButton({ x: 7, y: 0.05, z: 20.6 }, 'https://github.com/Spoon221');
 
 const mouse = new THREE.Vector2();
 
@@ -254,7 +256,7 @@ window.addEventListener('click', (event) => {
     intersects.forEach(intersect => {
         if (intersect.object.isButton) {
             buttonClicked = true;
-            window.location.href = intersect.object.url;
+            window.open(intersect.object.url, '_blank');
         }
     });
 });
@@ -299,10 +301,12 @@ window.addEventListener('keyup', (event) => {
 const clock = new THREE.Clock();
 let previousTime = 0;
 
-// Функция для включения/выключения анимации
 function updateAnimation() {
+    const animationSpeed = 2.455;
+
     if (keys.w || keys.a || keys.s || keys.d) {
         if (currentAction && !currentAction.isRunning()) {
+            currentAction.setEffectiveTimeScale(animationSpeed);
             currentAction.play();
         }
     } else {
@@ -317,15 +321,14 @@ const lerpAngle = (a, b, t) => {
     return a + diff * t;
 };
 
-
 function checkCollisions(newPosition) {
-    const playerBox = new THREE.Box3().setFromObject(model); 
-    playerBox.translate(newPosition.clone().sub(model.position)); 
+    const playerBox = new THREE.Box3().setFromObject(model);
+    playerBox.translate(newPosition.clone().sub(model.position));
 
     for (const collider of colliderModels) {
-        if (collider === model) continue; 
+        if (collider === model) continue;
 
-        const colliderBox = new THREE.Box3().setFromObject(collider); 
+        const colliderBox = new THREE.Box3().setFromObject(collider);
         if (playerBox.intersectsBox(colliderBox)) {
             return true;
         }
@@ -345,43 +348,48 @@ const tick = () => {
 
     const globalDirection = new THREE.Vector3(0, 0, 0);
     if (keys.w) globalDirection.z += 1;
-    if (keys.a) globalDirection.x += 1; 
-    if (keys.d) globalDirection.x -= 1; 
+    if (keys.a) globalDirection.x += 1;
+    if (keys.d) globalDirection.x -= 1;
 
     globalDirection.normalize();
 
     if (model) {
         const localDirection = globalDirection.clone().applyQuaternion(model.quaternion);
-        localDirection.y = 0; 
+        localDirection.y = 0;
         localDirection.normalize();
         velocity.copy(localDirection).multiplyScalar(speed);
 
         const newPosition = model.position.clone().add(velocity);
 
         if (!checkCollisions(newPosition)) {
-            model.position.copy(newPosition); 
+            model.position.copy(newPosition);
+        }
+
+        let rotationSpeed = 0.057;
+        if (keys.a || keys.d) {
+            rotationSpeed = 0.02;
         }
 
         if (localDirection.length() > 0) {
-            const targetRotationY = Math.atan2(localDirection.x, localDirection.z); 
-            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, 0.057); 
+            const targetRotationY = Math.atan2(localDirection.x, localDirection.z);
+            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, rotationSpeed);
         }
 
         if (keys.s) {
             const backwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(model.quaternion);
-            backwardDirection.y = 0; 
+            backwardDirection.y = 0;
             backwardDirection.normalize();
 
             const backwardVelocity = backwardDirection.clone().multiplyScalar(speed);
             const backwardPosition = model.position.clone().add(backwardVelocity);
 
             if (!checkCollisions(backwardPosition)) {
-                model.position.copy(backwardPosition); 
+                model.position.copy(backwardPosition);
             }
         }
 
-        const cameraOffset = new THREE.Vector3(0, 3.2, -5); 
-        cameraOffset.applyQuaternion(model.quaternion); 
+        const cameraOffset = new THREE.Vector3(0, 2.8, -5);
+        cameraOffset.applyQuaternion(model.quaternion);
         camera.position.copy(model.position).add(cameraOffset);
 
         camera.lookAt(model.position);
