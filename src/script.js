@@ -316,11 +316,6 @@ function updateAnimation() {
     }
 }
 
-const lerpAngle = (a, b, t) => {
-    const diff = (b - a + Math.PI) % (2 * Math.PI) - Math.PI;
-    return a + diff * t;
-};
-
 function checkCollisions(newPosition) {
     const playerBox = new THREE.Box3().setFromObject(model);
     playerBox.translate(newPosition.clone().sub(model.position));
@@ -365,14 +360,18 @@ const tick = () => {
             model.position.copy(newPosition);
         }
 
-        let rotationSpeed = 0.057;
+        let rotationSpeed = 0.02;
         if (keys.a || keys.d) {
             rotationSpeed = 0.02;
         }
 
         if (localDirection.length() > 0) {
             const targetRotationY = Math.atan2(localDirection.x, localDirection.z);
-            model.rotation.y = lerpAngle(model.rotation.y, targetRotationY, rotationSpeed);
+            const targetQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, targetRotationY, 0));
+            const currentQuaternion = model.quaternion.clone();
+
+            currentQuaternion.slerp(targetQuaternion, rotationSpeed);
+            model.quaternion.copy(currentQuaternion);
         }
 
         if (keys.s) {
