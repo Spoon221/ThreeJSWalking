@@ -13,86 +13,52 @@ const scene = new THREE.Scene();
  * Fog
  */
 const fogColor = new THREE.Color(0xaaaaaa);
-const nearFog = 1; 
-const farFog = 50; 
+const nearFog = 1;
+const farFog = 50;
 scene.fog = new THREE.Fog(fogColor, nearFog, farFog);
 
-const snowGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-const snowMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); 
-
-function addSnow() {
-    const snowCount = 800; 
-    const groundY = 0;
-    const radius = 50; 
-    const groupSize = 3; 
-
-    for (let i = 0; i < snowCount; i += groupSize) {
-        const snowGroup = new THREE.Group();
-
-        const x = Math.random() * radius * 2 - radius; 
-        const z = Math.random() * radius * 2 - radius; 
-
-        const positions = [
-            { x: x - 0.1, z: z },   
-            { x: x + 0.1, z: z },  
-            { x: x, z: z + 0.1 }     
-        ];
-
-        for (let j = 0; j < groupSize; j++) {
-            const snow = new THREE.Mesh(snowGeometry, snowMaterial);
-            snow.position.set(positions[j].x, groundY + 0.1, positions[j].z); 
-            snow.rotation.x = Math.random() * Math.PI; 
-            snowGroup.add(snow); 
-        }
-
-        scene.add(snowGroup); 
-    }
-}
-
-addSnow();
-
 const snowflakeGeometry = new THREE.CircleGeometry(0.05, 8);
-const snowflakeMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0xffffff, 
-    transparent: true, 
-    opacity: 0.8, 
-    side: THREE.DoubleSide 
+const snowflakeMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.8,
+    side: THREE.DoubleSide
 });
 
-const snowflakes = []; 
-const snowflakeCount = 700; 
-const minX = -40; 
-const maxX = 40;  
-const minZ = -40; 
-const maxZ = 40;  
+const snowflakes = [];
+const snowflakeCount = 700;
+const minX = -40;
+const maxX = 40;
+const minZ = -40;
+const maxZ = 40;
 
 for (let i = 0; i < snowflakeCount; i++) {
     const snowflake = new THREE.Mesh(snowflakeGeometry, snowflakeMaterial);
-    
-    snowflake.position.x = Math.random() * (maxX - minX) + minX; 
-    snowflake.position.y = Math.random() * 10; 
-    snowflake.position.z = Math.random() * (maxZ - minZ) + minZ; 
+
+    snowflake.position.x = Math.random() * (maxX - minX) + minX;
+    snowflake.position.y = Math.random() * 10;
+    snowflake.position.z = Math.random() * (maxZ - minZ) + minZ;
     const scale = Math.random() * 0.5 + 0.5;
     snowflake.scale.set(scale, scale, scale);
-    snowflake.speed = Math.random() * 0.005 + 0.005; 
-    snowflake.material.opacity = Math.random() * 0.5 + 0.3; 
+    snowflake.speed = Math.random() * 0.005 + 0.005;
+    snowflake.material.opacity = Math.random() * 0.5 + 0.3;
 
     snowflakes.push(snowflake);
-    scene.add(snowflake); 
+    scene.add(snowflake);
 }
 
 function updateSnowflakes() {
     for (let i = 0; i < snowflakes.length; i++) {
         const snowflake = snowflakes[i];
 
-        snowflake.position.y -= snowflake.speed; 
+        snowflake.position.y -= snowflake.speed;
 
         snowflake.speed = Math.random() * 0.005 + 0.005;
         snowflake.rotation.z += 0.01;
         if (snowflake.position.y < 0) {
-            snowflake.position.y = Math.random() * 10; 
-            snowflake.position.x = Math.random() * (maxX - minX) + minX; 
-            snowflake.position.z = Math.random() * (maxZ - minZ) + minZ; 
+            snowflake.position.y = Math.random() * 10;
+            snowflake.position.x = Math.random() * (maxX - minX) + minX;
+            snowflake.position.z = Math.random() * (maxZ - minZ) + minZ;
         }
     }
 }
@@ -151,11 +117,25 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
 /**
  * Floor
  */
+let isInSnow = false;
+const snowSpeedFactor = 0.5;
+let snowColliders = [];
+
 const loader = new GLTFLoader();
 loader.load('/models/pol.glb', (gltf) => {
     const floor = gltf.scene;
     floor.scale.set(1, 1, 1);
     floor.position.set(0, 0, 0);
+    const snowPiles = floor.children.filter(child =>
+        child.name === 'сугроб3' ||
+        child.name === 'сугроб4' ||
+        child.name === 'сугроб5'
+    );
+
+    snowPiles.forEach(snowPile => {
+        const collider = new THREE.Box3().setFromObject(snowPile);
+        snowColliders.push(collider);
+    });
 
     scene.add(floor);
 }, undefined, (error) => {
@@ -226,10 +206,11 @@ imageLoader.load(imageUrl, (texture) => {
     const planeGeometry = new THREE.PlaneGeometry(3, 2);
     const imageMesh = new THREE.Mesh(planeGeometry, material);
 
-    imageMesh.position.set(0, 0, 0);
-    imageMesh.rotation.set(0, -Math.PI / 2.9, 0);
-    imageMesh.scale.set(1, 1, 1);
-
+    imageMesh.position.set(8.5, 3.5, 24);
+    imageMesh.rotation.y = 204.7;
+    imageMesh.rotation.x = 0;
+    imageMesh.rotation.z = 0;
+    imageMesh.scale.set(1.85, 1.5, 1);
     scene.add(imageMesh);
 
 }, undefined, (error) => {
@@ -392,6 +373,13 @@ function checkCollisions(newPosition) {
     return false;
 }
 
+function checkSnowCollision() {
+    if (snowColliders.length > 0) {
+        const playerBox = new THREE.Box3().setFromObject(model);
+        isInSnow = snowColliders.some(collider => playerBox.intersectsBox(collider));
+    }
+}
+
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
@@ -400,6 +388,8 @@ const tick = () => {
     if (mixer) {
         mixer.update(deltaTime);
     }
+
+    checkSnowCollision();
 
     const globalDirection = new THREE.Vector3(0, 0, 0);
     if (keys.w) globalDirection.z += 1;
@@ -412,7 +402,9 @@ const tick = () => {
         const localDirection = globalDirection.clone().applyQuaternion(model.quaternion);
         localDirection.y = 0;
         localDirection.normalize();
-        velocity.copy(localDirection).multiplyScalar(speed);
+
+        const currentSpeed = isInSnow ? speed * snowSpeedFactor : speed;
+        velocity.copy(localDirection).multiplyScalar(currentSpeed);
 
         const newPosition = model.position.clone().add(velocity);
 
@@ -439,7 +431,7 @@ const tick = () => {
             backwardDirection.y = 0;
             backwardDirection.normalize();
 
-            const backwardVelocity = backwardDirection.clone().multiplyScalar(speed);
+            const backwardVelocity = backwardDirection.clone().multiplyScalar(currentSpeed);
             const backwardPosition = model.position.clone().add(backwardVelocity);
 
             if (!checkCollisions(backwardPosition)) {
