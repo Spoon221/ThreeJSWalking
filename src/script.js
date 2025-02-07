@@ -99,6 +99,7 @@ function createShadowMesh(size, position, opacity) {
     return shadowMesh;
 }
 
+// Загрузка модели
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1.6;
@@ -112,6 +113,14 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
     if (animations.length > 0) {
         currentAction = mixer.clipAction(animations[0]);
     }
+
+    // Создание коллайдера
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); 
+    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false }); 
+    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
+    collider.position.copy(model.position);
+    collider.scale.set(0.2, 1, 0.2);
+    scene.add(collider);
 });
 
 /**
@@ -129,7 +138,8 @@ loader.load('/models/pol.glb', (gltf) => {
     const snowPiles = floor.children.filter(child =>
         child.name === 'сугроб3' ||
         child.name === 'сугроб4' ||
-        child.name === 'сугроб5'
+        child.name === 'сугроб5' ||
+        child.name === 'сугроб6' 
     );
 
     snowPiles.forEach(snowPile => {
@@ -158,6 +168,7 @@ colliderPositions.forEach(position => {
 
         shadowSizes.forEach((size, index) => {
             const shadowMesh = createShadowMesh(size, position, shadowOpacities[index]);
+            shadowMesh.position.y +=0.099
             scene.add(shadowMesh);
         });
     });
@@ -195,27 +206,62 @@ for (let i = 0; i < wallCount; i++) {
 }
 
 const imageLoader = new THREE.TextureLoader();
-const imageUrl = '/models/git.png';
 
-imageLoader.load(imageUrl, (texture) => {
-    const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        side: THREE.DoubleSide,
-        transparent: true,
+const imagesData = [
+    {
+        url: '/models/git.png',
+        position: { x: 8.5, y: 3.5, z: 24 },
+        rotation: { x: 0, y: 204.7 * (Math.PI / 180), z: 0 },
+        scale: { x: 1.85, y: 1.5, z: 1 }
+    },
+    {
+        url: '/models/ifDead.png',
+        position: { x: 47, y: 5, z: -1.1 },
+        rotation: { x: 0, y: -90 * (Math.PI / 180), z: 0 },
+        scale: { x: 1.5, y: 1.3, z: 1 }
+    },
+    {
+        url: '/models/unity.png',
+        position: { x: 47, y: 7.6, z: -1.1 },
+        rotation: { x: 0, y: -90 * (Math.PI / 180), z: 0 },
+        scale: { x: 1.85, y: 1, z: 1 }
+    },
+    {
+        url: '/models/modelsIf.png',
+        position: { x: 47.7, y: 2.6, z: -2.8 },
+        rotation: { x: 0, y: -90 * (Math.PI / 180), z: 0 },
+        scale: { x: 1, y: 1, z: 1 }
+    },
+    {
+        url: '/models/mapIf.png',
+        position: { x: 47.955, y: 2.6, z: 0.8 },
+        rotation: { x: 0, y: -94 * (Math.PI / 180), z: 0 },
+        scale: { x: 1, y: 1, z: 1 }
+    },
+];
+
+function loadImages() {
+    imagesData.forEach(imageData => {
+        imageLoader.load(imageData.url, (texture) => {
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+                transparent: true,
+            });
+            const planeGeometry = new THREE.PlaneGeometry(3, 2);
+            const imageMesh = new THREE.Mesh(planeGeometry, material);
+            imageMesh.position.set(imageData.position.x, imageData.position.y, imageData.position.z);
+            imageMesh.rotation.set(imageData.rotation.x, imageData.rotation.y, imageData.rotation.z);
+            imageMesh.scale.set(imageData.scale.x, imageData.scale.y, imageData.scale.z);
+            scene.add(imageMesh);
+
+        }, undefined, (error) => {
+            console.error('Ошибка загрузки текстуры:', error);
+        });
     });
-    const planeGeometry = new THREE.PlaneGeometry(3, 2);
-    const imageMesh = new THREE.Mesh(planeGeometry, material);
+}
 
-    imageMesh.position.set(8.5, 3.5, 24);
-    imageMesh.rotation.y = 204.7;
-    imageMesh.rotation.x = 0;
-    imageMesh.rotation.z = 0;
-    imageMesh.scale.set(1.85, 1.5, 1);
-    scene.add(imageMesh);
-
-}, undefined, (error) => {
-    console.error('Ошибка загрузки текстуры:', error);
-});
+loadImages();
 
 /**
  * Lights
@@ -284,7 +330,8 @@ function createButton(position, url) {
 }
 
 const button1 = createButton({ x: 6, y: 0.05, z: 19 }, 'https://github.com/Spoon221');
-
+const button2 = createButton({ x: 46, y: 0.05, z: -1.4 }, 'https://github.com/Spoon221/IFdead');
+button2.rotation.z = 29.8;
 const mouse = new THREE.Vector2();
 
 window.addEventListener('click', (event) => {
