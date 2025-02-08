@@ -134,7 +134,6 @@ loader.load('/models/pol.glb', (gltf) => {
     floor.scale.set(1, 1, 1);
     floor.position.set(0, 0, 0);
 
-    // Фильтруем снеговые кучи
     const snowPiles = floor.children.filter(child =>
         child.name === 'сугроб3' ||
         child.name === 'сугроб4' ||
@@ -172,7 +171,9 @@ loader.load('/models/pol.glb', (gltf) => {
             })
         );
 
-        colliderBox.position.set(collider.getCenter(new THREE.Vector3()).x, collider.getCenter(new THREE.Vector3()).y, collider.getCenter(new THREE.Vector3()).z);
+        colliderBox.position.set(collider.getCenter(new THREE.Vector3()).x,
+         collider.getCenter(new THREE.Vector3()).y,
+          collider.getCenter(new THREE.Vector3()).z);
 
         scene.add(colliderBox);
         colliderModels.push(cylinder);
@@ -414,6 +415,51 @@ window.addEventListener('keyup', (event) => {
     if (event.code === 'KeyD') keys.d = false;
 });
 
+const trashGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+const trashMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const trash = new THREE.Mesh(trashGeometry, trashMaterial);
+trash.position.set(4, 0.5, 0);
+scene.add(trash);
+
+let kickInProgress = false;
+let kickStartPosition = new THREE.Vector3();
+let kickEndPosition = new THREE.Vector3();
+let kickDuration = 500;
+let kickStartTime = 0;
+
+function kickTrash() {
+    if (kickInProgress) return;
+
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+
+    const kickForce = 2;
+    kickStartPosition.copy(trash.position);
+    kickEndPosition.copy(trash.position).add(direction.clone().multiplyScalar(kickForce));
+    kickStartTime = performance.now();
+    kickInProgress = true;
+
+    animateKick();
+}
+
+function animateKick() {
+    if (!kickInProgress) return;
+
+    const currentTime = performance.now();
+    const elapsedTime = currentTime - kickStartTime;
+    const t = Math.min(elapsedTime / kickDuration, 1);
+
+    trash.position.lerpVectors(kickStartPosition, kickEndPosition, t);
+
+    if (t < 1) {
+        requestAnimationFrame(animateKick); 
+    } else {
+        kickInProgress = false; 
+    }
+}
+
 /**
  * Animate
  */
@@ -489,7 +535,11 @@ const tick = () => {
         if (!checkCollisions(newPosition)) {
             model.position.copy(newPosition);
         }
-
+        const playerBox = new THREE.Box3().setFromObject(model);
+        const trashBox = new THREE.Box3().setFromObject(trash);
+        if (playerBox.intersectsBox(trashBox)) {
+            kickTrash();
+        }
         let rotationSpeed = 0.02;
         if (keys.a || keys.d) {
             rotationSpeed = 0.02;
