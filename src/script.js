@@ -99,7 +99,6 @@ function createShadowMesh(size, position, opacity) {
     return shadowMesh;
 }
 
-// Загрузка модели
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1.6;
@@ -114,9 +113,8 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
         currentAction = mixer.clipAction(animations[0]);
     }
 
-    // Создание коллайдера
-    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); 
-    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false }); 
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
     const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
     collider.position.copy(model.position);
     collider.scale.set(0.2, 1, 0.2);
@@ -135,16 +133,49 @@ loader.load('/models/pol.glb', (gltf) => {
     const floor = gltf.scene;
     floor.scale.set(1, 1, 1);
     floor.position.set(0, 0, 0);
+
+    // Фильтруем снеговые кучи
     const snowPiles = floor.children.filter(child =>
         child.name === 'сугроб3' ||
         child.name === 'сугроб4' ||
         child.name === 'сугроб5' ||
-        child.name === 'сугроб6' 
+        child.name === 'сугроб6'
     );
 
     snowPiles.forEach(snowPile => {
         const collider = new THREE.Box3().setFromObject(snowPile);
         snowColliders.push(collider);
+    });
+
+    const cylinders = floor.children.filter(child => child.name === 'Цилиндр' ||
+        child.name === 'Цилиндр1' ||
+        child.name === 'Цилиндр2' ||
+        child.name === 'Цилиндр3' ||
+        child.name === 'Цилиндр4' ||
+        child.name === 'Цилиндр5' ||
+        child.name === 'Цилиндр6' ||
+        child.name === 'Цилиндр7' ||
+        child.name === 'Цилиндр8');
+
+    cylinders.forEach(cylinder => {
+        const collider = new THREE.Box3().setFromObject(cylinder);
+
+        const size = collider.getSize(new THREE.Vector3());
+        const scaleFactor = 0.6; 
+
+        const colliderBox = new THREE.Mesh(
+            new THREE.BoxGeometry(size.x * scaleFactor, size.y, size.z * scaleFactor), 
+            new THREE.MeshBasicMaterial({  
+                transparent: true, 
+                opacity: 0, 
+                depthWrite: false 
+            })
+        );
+
+        colliderBox.position.set(collider.getCenter(new THREE.Vector3()).x, collider.getCenter(new THREE.Vector3()).y, collider.getCenter(new THREE.Vector3()).z);
+
+        scene.add(colliderBox);
+        colliderModels.push(cylinder);
     });
 
     scene.add(floor);
@@ -168,7 +199,7 @@ colliderPositions.forEach(position => {
 
         shadowSizes.forEach((size, index) => {
             const shadowMesh = createShadowMesh(size, position, shadowOpacities[index]);
-            shadowMesh.position.y +=0.099
+            shadowMesh.position.y += 0.099
             scene.add(shadowMesh);
         });
     });
@@ -216,7 +247,7 @@ const imagesData = [
     },
     {
         url: '/models/ifDead.png',
-        position: { x: 47, y: 5, z: -1.1 },
+        position: { x: 47.8, y: 5, z: -1.1 },
         rotation: { x: 0, y: -90 * (Math.PI / 180), z: 0 },
         scale: { x: 1.5, y: 1.3, z: 1 }
     },
