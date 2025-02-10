@@ -459,10 +459,17 @@ let kickStartPosition = new THREE.Vector3();
 let kickEndPosition = new THREE.Vector3();
 let kickDuration = 500;
 let kickStartTime = 0;
-const groundHeight = 0.01; 
+const groundHeight = 0.5; 
 
-function kickTrash(trash) { 
+const maxRotationX = Math.PI / 7; 
+const maxRotationZ = Math.PI / 7; 
+
+const kickStates = trashModels.map(() => false); 
+
+function kickTrash(trash, index) { 
     if (kickInProgress || !trash) return;
+    kickStates[index] = true; 
+
     trash.updateMatrixWorld();
 
     const direction = new THREE.Vector3();
@@ -470,16 +477,16 @@ function kickTrash(trash) {
     direction.y = 0;
     direction.normalize();
 
-    const kickForce = 2;
+    const kickForce = 5.5;
     kickStartPosition.copy(trash.position);
     kickEndPosition.copy(trash.position).add(direction.clone().multiplyScalar(kickForce));
     kickStartTime = performance.now();
     kickInProgress = true;
 
-    animateKick(trash); 
+    animateKick(trash, index); 
 }
 
-function animateKick(trash) { 
+function animateKick(trash, index) { 
     if (!kickInProgress) return;
 
     const currentTime = performance.now();
@@ -490,13 +497,33 @@ function animateKick(trash) {
     if (trash.position.y < groundHeight) {
         trash.position.y = groundHeight; 
     }
+
     const randomRotationSpeedY = Math.random() * 0.1;
     trash.rotation.y += randomRotationSpeedY;
 
+    const randomRotationSpeedX = (Math.random() - 0.2) * 0.1; 
+    trash.rotation.x += randomRotationSpeedX;
+
+    if (trash.rotation.x > maxRotationX) {
+        trash.rotation.x = maxRotationX;
+    } else if (trash.rotation.x < -maxRotationX) {
+        trash.rotation.x = -maxRotationX;
+    }
+
+    const randomRotationSpeedZ = (Math.random() - 0.5) * 0.1; 
+    trash.rotation.z += randomRotationSpeedZ;
+
+    if (trash.rotation.z > maxRotationZ) {
+        trash.rotation.z = maxRotationZ;
+    } else if (trash.rotation.z < -maxRotationZ) {
+        trash.rotation.z = -maxRotationZ;
+    }
+
     if (t < 1) {
-        requestAnimationFrame(() => animateKick(trash));
+        requestAnimationFrame(() => animateKick(trash, index)); 
     } else {
         kickInProgress = false;
+        kickStates[index] = false;
     }
 }
 
@@ -505,16 +532,15 @@ function checkTrashCollision() {
 
     const playerBox = new THREE.Box3().setFromObject(model); 
 
-    for (const trash of trashModels) {
+    for (let i = 0; i < trashModels.length; i++) {
+        const trash = trashModels[i];
         const trashBox = new THREE.Box3().setFromObject(trash); 
-        if (playerBox.intersectsBox(trashBox)) {
-            kickTrash(trash); 
+        if (playerBox.intersectsBox(trashBox) && !kickStates[i]) { 
+            kickTrash(trash, i); 
             break; 
         }
     }
 }
-
-const minDistance = 1;
 
 function checkTrashOverlap() {
     for (let i = 0; i < trashModels.length; i++) {
@@ -536,6 +562,7 @@ function checkTrashOverlap() {
         }
     }
 }
+
 /**
  * Animate
  */
