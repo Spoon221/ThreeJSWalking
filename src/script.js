@@ -160,20 +160,20 @@ loader.load('/models/pol.glb', (gltf) => {
         const collider = new THREE.Box3().setFromObject(cylinder);
 
         const size = collider.getSize(new THREE.Vector3());
-        const scaleFactor = 0.6; 
+        const scaleFactor = 0.6;
 
         const colliderBox = new THREE.Mesh(
-            new THREE.BoxGeometry(size.x * scaleFactor, size.y, size.z * scaleFactor), 
-            new THREE.MeshBasicMaterial({  
-                transparent: true, 
-                opacity: 0, 
-                depthWrite: false 
+            new THREE.BoxGeometry(size.x * scaleFactor, size.y, size.z * scaleFactor),
+            new THREE.MeshBasicMaterial({
+                transparent: true,
+                opacity: 0,
+                depthWrite: false
             })
         );
 
         colliderBox.position.set(collider.getCenter(new THREE.Vector3()).x,
-         collider.getCenter(new THREE.Vector3()).y,
-          collider.getCenter(new THREE.Vector3()).z);
+            collider.getCenter(new THREE.Vector3()).y,
+            collider.getCenter(new THREE.Vector3()).z);
 
         scene.add(colliderBox);
         colliderModels.push(cylinder);
@@ -270,6 +270,12 @@ const imagesData = [
         rotation: { x: 0, y: -94 * (Math.PI / 180), z: 0 },
         scale: { x: 1, y: 1, z: 1 }
     },
+    {
+        url: '/models/LinkedIn.png',
+        position: { x: 0.9, y: 4, z: -47.87 },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 0.75, y: 1, z: 1 }
+    },
 ];
 
 function loadImages() {
@@ -363,7 +369,10 @@ function createButton(position, url) {
 
 const button1 = createButton({ x: 6, y: 0.05, z: 19 }, 'https://github.com/Spoon221');
 const button2 = createButton({ x: 46, y: 0.05, z: -1.4 }, 'https://github.com/Spoon221/IFdead');
+const button3 = createButton({ x: 0.3, y: 0.05, z: -46.0 }, 'https://www.linkedin.com/in/евгений-симаков-7680b0345/');
+
 button2.rotation.z = 29.8;
+button3.rotation.z = 0;
 const mouse = new THREE.Vector2();
 
 window.addEventListener('click', (event) => {
@@ -415,20 +424,46 @@ window.addEventListener('keyup', (event) => {
     if (event.code === 'KeyD') keys.d = false;
 });
 
-const trashGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-const trashMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-const trash = new THREE.Mesh(trashGeometry, trashMaterial);
-trash.position.set(4, 0.5, 0);
-scene.add(trash);
+let trashModels = []; 
+let trashLoadedCount = 0; 
+
+const trashPositions = [
+    { x: 6, y: 0.2, z: 1.4 },
+    { x: 5, y: 0.2, z: 23.0 },
+    { x: -3, y: 0.2, z: -27.0 },
+    { x: 4.3, y: 0.2, z: -27.0 },
+    { x: -23, y: 0.2, z: -5.5 },
+];
+
+const loadertrash = new GLTFLoader();
+
+trashPositions.forEach(position => {
+    loadertrash.load('/models/trash.glb', (gltf) => {
+        const trash = gltf.scene;
+        trash.position.set(position.x, position.y, position.z);
+        trash.scale.set(0.4, 0.4, 0.4);
+        scene.add(trash);
+        trashModels.push(trash); 
+        trashLoadedCount++;
+
+        if (trashLoadedCount === trashPositions.length) {
+            console.log('Все мусорки успешно загружены:', trashModels);
+        }
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки модели trash:', error);
+    });
+});
 
 let kickInProgress = false;
 let kickStartPosition = new THREE.Vector3();
 let kickEndPosition = new THREE.Vector3();
 let kickDuration = 500;
 let kickStartTime = 0;
+const groundHeight = 0.01; 
 
-function kickTrash() {
-    if (kickInProgress) return;
+function kickTrash(trash) { 
+    if (kickInProgress || !trash) return;
+    trash.updateMatrixWorld();
 
     const direction = new THREE.Vector3();
     camera.getWorldDirection(direction);
@@ -441,10 +476,10 @@ function kickTrash() {
     kickStartTime = performance.now();
     kickInProgress = true;
 
-    animateKick();
+    animateKick(trash); 
 }
 
-function animateKick() {
+function animateKick(trash) { 
     if (!kickInProgress) return;
 
     const currentTime = performance.now();
@@ -452,14 +487,55 @@ function animateKick() {
     const t = Math.min(elapsedTime / kickDuration, 1);
 
     trash.position.lerpVectors(kickStartPosition, kickEndPosition, t);
+    if (trash.position.y < groundHeight) {
+        trash.position.y = groundHeight; 
+    }
+    const randomRotationSpeedY = Math.random() * 0.1;
+    trash.rotation.y += randomRotationSpeedY;
 
     if (t < 1) {
-        requestAnimationFrame(animateKick); 
+        requestAnimationFrame(() => animateKick(trash));
     } else {
-        kickInProgress = false; 
+        kickInProgress = false;
     }
 }
 
+function checkTrashCollision() {
+    if (!model || trashModels.length === 0) return; 
+
+    const playerBox = new THREE.Box3().setFromObject(model); 
+
+    for (const trash of trashModels) {
+        const trashBox = new THREE.Box3().setFromObject(trash); 
+        if (playerBox.intersectsBox(trashBox)) {
+            kickTrash(trash); 
+            break; 
+        }
+    }
+}
+
+const minDistance = 1;
+
+function checkTrashOverlap() {
+    for (let i = 0; i < trashModels.length; i++) {
+        for (let j = i + 1; j < trashModels.length; j++) {
+            const trashA = trashModels[i];
+            const trashB = trashModels[j];
+
+            const boxA = new THREE.Box3().setFromObject(trashA);
+            const boxB = new THREE.Box3().setFromObject(trashB);
+
+            if (boxA.intersectsBox(boxB)) {
+                const centerA = boxA.getCenter(new THREE.Vector3());
+                const centerB = boxB.getCenter(new THREE.Vector3());
+                const direction = new THREE.Vector3().subVectors(centerB, centerA).normalize();
+
+                const offset = direction.multiplyScalar(minDistance);
+                trashB.position.add(offset);
+            }
+        }
+    }
+}
 /**
  * Animate
  */
@@ -535,11 +611,9 @@ const tick = () => {
         if (!checkCollisions(newPosition)) {
             model.position.copy(newPosition);
         }
-        const playerBox = new THREE.Box3().setFromObject(model);
-        const trashBox = new THREE.Box3().setFromObject(trash);
-        if (playerBox.intersectsBox(trashBox)) {
-            kickTrash();
-        }
+
+        checkTrashCollision();
+
         let rotationSpeed = 0.02;
         if (keys.a || keys.d) {
             rotationSpeed = 0.02;
@@ -577,8 +651,10 @@ const tick = () => {
     updateAnimation();
     updateSnowflakes();
     updateCameraPosition();
+    checkTrashOverlap();
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
 };
+
 
 tick();
