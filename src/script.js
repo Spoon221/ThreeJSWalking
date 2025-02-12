@@ -102,7 +102,7 @@ function createShadowMesh(size, position, opacity) {
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1.6;
-    model.scale.set(1.55, 1.55, 1.55);
+    model.scale.set(1.4, 1.4, 1.4);
     colliderModels.push(model);
     scene.add(model);
 
@@ -117,7 +117,7 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
     const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
     const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
     collider.position.copy(model.position);
-    collider.scale.set(0.2, 1, 0.2);
+    collider.scale.set(0.45, 1, 0.45);
     scene.add(collider);
 });
 
@@ -276,6 +276,18 @@ const imagesData = [
         rotation: { x: 0, y: 0, z: 0 },
         scale: { x: 0.75, y: 1, z: 1 }
     },
+    {
+        url: '/models/react.png',
+        position: { x: -47.7, y: 3.5, z: -0.9 },
+        rotation: { x: 0, y: 94 * (Math.PI / 180) - 0.1, z: 0 },
+        scale: { x: 1.15, y: 1, z: 1 }
+    },
+    {
+        url: '/models/iconReact.png',
+        position: { x: -47.7, y: 7, z: -0.9 },
+        rotation: { x: 0, y: 94 * (Math.PI / 180) - 0.1, z: 0 },
+        scale: { x: 0.8, y: 1, z: 1 }
+    },
 ];
 
 function loadImages() {
@@ -370,9 +382,11 @@ function createButton(position, url) {
 const button1 = createButton({ x: 6, y: 0.05, z: 19 }, 'https://github.com/Spoon221');
 const button2 = createButton({ x: 46, y: 0.05, z: -1.4 }, 'https://github.com/Spoon221/IFdead');
 const button3 = createButton({ x: 0.3, y: 0.05, z: -46.0 }, 'https://www.linkedin.com/in/евгений-симаков-7680b0345/');
+const button4 = createButton({ x: -45.5, y: 0.05, z: -1.1 }, 'https://react4-mvstlldxk-spoon221s-projects.vercel.app');
 
 button2.rotation.z = 29.8;
 button3.rotation.z = 0;
+button4.rotation.z = 20.4;
 const mouse = new THREE.Vector2();
 
 window.addEventListener('click', (event) => {
@@ -401,7 +415,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
  * Movement
  */
 const velocity = new THREE.Vector3();
-const speed = 0.1;
+const speed = 0.075;
 
 const keys = {
     w: false,
@@ -424,14 +438,14 @@ window.addEventListener('keyup', (event) => {
     if (event.code === 'KeyD') keys.d = false;
 });
 
-let trashModels = []; 
-let trashLoadedCount = 0; 
+let trashModels = [];
+let trashLoadedCount = 0;
 
 const trashPositions = [
     { x: 6, y: 0.2, z: 1.4 },
     { x: 5, y: 0.2, z: 23.0 },
     { x: -3, y: 0.2, z: -27.0 },
-    { x: 4.3, y: 0.2, z: -27.0 },
+    { x: 4, y: 0.2, z: -27.0 },
     { x: -23, y: 0.2, z: -5.5 },
 ];
 
@@ -443,12 +457,8 @@ trashPositions.forEach(position => {
         trash.position.set(position.x, position.y, position.z);
         trash.scale.set(0.4, 0.4, 0.4);
         scene.add(trash);
-        trashModels.push(trash); 
+        trashModels.push(trash);
         trashLoadedCount++;
-
-        if (trashLoadedCount === trashPositions.length) {
-            console.log('Все мусорки успешно загружены:', trashModels);
-        }
     }, undefined, (error) => {
         console.error('Ошибка загрузки модели trash:', error);
     });
@@ -457,18 +467,21 @@ trashPositions.forEach(position => {
 let kickInProgress = false;
 let kickStartPosition = new THREE.Vector3();
 let kickEndPosition = new THREE.Vector3();
-let kickDuration = 500;
+let kickDuration = 500; 
 let kickStartTime = 0;
-const groundHeight = 0.5; 
+const groundHeight = 0.63;
 
-const maxRotationX = Math.PI / 7; 
-const maxRotationZ = Math.PI / 7; 
+const maxRotationZ = Math.PI / 7;
+const rotationSpeed = 0.04; 
+const minDistance = 1;
+const kickStates = Array(trashModels.length).fill(false);
+const firstKick = {};
 
-const kickStates = trashModels.map(() => false); 
-
-function kickTrash(trash, index) { 
+function kickTrash(trash, index) {
     if (kickInProgress || !trash) return;
-    kickStates[index] = true; 
+
+    kickStates[index] = true;
+    firstKick[index] = true;
 
     trash.updateMatrixWorld();
 
@@ -477,67 +490,128 @@ function kickTrash(trash, index) {
     direction.y = 0;
     direction.normalize();
 
-    const kickForce = 5.5;
+    const kickForce = 7.8; // Увеличьте это значение для большего расстояния
     kickStartPosition.copy(trash.position);
     kickEndPosition.copy(trash.position).add(direction.clone().multiplyScalar(kickForce));
     kickStartTime = performance.now();
     kickInProgress = true;
 
-    animateKick(trash, index); 
+    animateKick(trash, index);
 }
 
-function animateKick(trash, index) { 
+function animateKick(trash, index) {
     if (!kickInProgress) return;
 
     const currentTime = performance.now();
     const elapsedTime = currentTime - kickStartTime;
     const t = Math.min(elapsedTime / kickDuration, 1);
 
-    trash.position.lerpVectors(kickStartPosition, kickEndPosition, t);
-    if (trash.position.y < groundHeight) {
-        trash.position.y = groundHeight; 
+    const newPosition = new THREE.Vector3().lerpVectors(kickStartPosition, kickEndPosition, t);
+    newPosition.y = Math.max(newPosition.y, groundHeight); 
+
+    if (checkTrashCollisionWithColliders(trash, newPosition)) {
+        kickInProgress = false;
+        kickStates[index] = false;
+        return; 
+    } else {
+        trash.position.copy(newPosition); 
     }
 
-    const randomRotationSpeedY = Math.random() * 0.1;
-    trash.rotation.y += randomRotationSpeedY;
-
-    const randomRotationSpeedX = (Math.random() - 0.2) * 0.1; 
-    trash.rotation.x += randomRotationSpeedX;
-
-    if (trash.rotation.x > maxRotationX) {
-        trash.rotation.x = maxRotationX;
-    } else if (trash.rotation.x < -maxRotationX) {
-        trash.rotation.x = -maxRotationX;
-    }
-
-    const randomRotationSpeedZ = (Math.random() - 0.5) * 0.1; 
-    trash.rotation.z += randomRotationSpeedZ;
-
-    if (trash.rotation.z > maxRotationZ) {
-        trash.rotation.z = maxRotationZ;
-    } else if (trash.rotation.z < -maxRotationZ) {
-        trash.rotation.z = -maxRotationZ;
+    if (firstKick[index]) {
+        const targetRotationX = Math.PI / 2;
+        trash.rotation.x += (targetRotationX - trash.rotation.x) * 0.1;
+        if (Math.abs(trash.rotation.x - targetRotationX) < 0.01) {
+            trash.rotation.x = targetRotationX;
+            firstKick[index] = false;
+        }
+    } else {
+        trash.rotation.y += rotationSpeed;
+        trash.rotation.z += (Math.random() - 0.5) * rotationSpeed;
+        trash.rotation.z = THREE.MathUtils.clamp(trash.rotation.z, -maxRotationZ, maxRotationZ);
     }
 
     if (t < 1) {
-        requestAnimationFrame(() => animateKick(trash, index)); 
+        requestAnimationFrame(() => animateKick(trash, index));
     } else {
-        kickInProgress = false;
-        kickStates[index] = false;
+        finalizeKick(trash);
     }
 }
 
-function checkTrashCollision() {
-    if (!model || trashModels.length === 0) return; 
+function finalizeKick(trash) {
+    const box = new THREE.Box3().setFromObject(trash);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    let targetRotation;
+    let targetPosition = new THREE.Vector3(trash.position.x, groundHeight, trash.position.z); 
 
-    const playerBox = new THREE.Box3().setFromObject(model); 
+    if (size.x > size.z) {
+        targetRotation = new THREE.Euler(0, 0, Math.PI / 2);
+    } else {
+        targetRotation = new THREE.Euler(Math.PI / 2, 0, 0); 
+    }
+
+    smoothTransitionToEdge(trash, targetPosition, targetRotation);
+    kickInProgress = false;
+    kickStates[trashModels.indexOf(trash)] = false; 
+    console.log(`Kick completed for trash at position ${trash.position}`);
+}
+
+function checkTrashCollisionWithColliders(trash, newPosition) {
+    const trashBox = new THREE.Box3().setFromObject(trash);
+    trashBox.setFromCenterAndSize(newPosition, new THREE.Vector3(0.4, 0.4, 0.4)); 
+
+    return colliderModels.some(collider => {
+        const colliderBox = new THREE.Box3().setFromObject(collider);
+        return trashBox.intersectsBox(colliderBox);
+    });
+}
+
+function smoothTransitionToEdge(trash, targetPosition, targetRotation) {
+    const transitionDuration = 570; // Длительность перехода в миллисекундах
+    const startTime = performance.now();
+
+    // Генерация случайного вращения по оси Z
+    const randomRotationZ = (Math.random() * (Math.PI / 4)) - (Math.PI / 8); // Случайное вращение от -π/8 до π/8
+
+    // Преобразуем целевое вращение в кватернион
+    const targetQuaternion = new THREE.Quaternion().setFromEuler(targetRotation);
+    const startQuaternion = new THREE.Quaternion().copy(trash.quaternion);
+
+    function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function animateTransition() {
+        const currentTime = performance.now();
+        const elapsedTime = currentTime - startTime;
+        const t = Math.min(elapsedTime / transitionDuration, 1);
+        const easedT = easeInOutCubic(t); 
+
+        trash.position.lerp(targetPosition, easedT);
+
+        const interpolatedQuaternion = new THREE.Quaternion().slerpQuaternions(startQuaternion, targetQuaternion, easedT);
+        trash.quaternion.copy(interpolatedQuaternion);
+
+        trash.position.copy(targetPosition);
+        trash.quaternion.copy(targetQuaternion); 
+        trash.rotation.z += randomRotationZ; 
+    }
+
+    animateTransition();
+}
+
+function checkTrashCollision() {
+    if (!model || trashModels.length === 0) return;
+
+    const playerBox = new THREE.Box3().setFromObject(model);
 
     for (let i = 0; i < trashModels.length; i++) {
         const trash = trashModels[i];
-        const trashBox = new THREE.Box3().setFromObject(trash); 
-        if (playerBox.intersectsBox(trashBox) && !kickStates[i]) { 
-            kickTrash(trash, i); 
-            break; 
+        const trashBox = new THREE.Box3().setFromObject(trash);
+        if (playerBox.intersectsBox(trashBox) && !kickStates[i]) {
+            kickTrash(trash, i);
+            console.log(`Attempting to kick trash at index ${i}`);
+            break;
         }
     }
 }
@@ -641,9 +715,9 @@ const tick = () => {
 
         checkTrashCollision();
 
-        let rotationSpeed = 0.02;
+        let rotationSpeed = 0.01;
         if (keys.a || keys.d) {
-            rotationSpeed = 0.02;
+            rotationSpeed = 0.01;
         }
 
         if (localDirection.length() > 0) {
@@ -668,7 +742,7 @@ const tick = () => {
             }
         }
 
-        const cameraOffset = new THREE.Vector3(0, 2.8, -5);
+        const cameraOffset = new THREE.Vector3(0, 3.6, -5.4);
         cameraOffset.applyQuaternion(model.quaternion);
         camera.position.copy(model.position).add(cameraOffset);
 
