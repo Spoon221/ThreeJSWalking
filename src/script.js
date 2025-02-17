@@ -26,7 +26,7 @@ const snowflakeMaterial = new THREE.MeshBasicMaterial({
 });
 
 const snowflakes = [];
-const snowflakeCount = 700;
+const snowflakeCount = 500;
 const minX = -40;
 const maxX = 40;
 const minZ = -40;
@@ -70,7 +70,6 @@ const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('/draco/');
 
 const gltfLoader = new GLTFLoader();
-gltfLoader.setDRACOLoader(dracoLoader);
 
 let mixer = null;
 let model = null;
@@ -146,15 +145,7 @@ loader.load('/models/pol.glb', (gltf) => {
         snowColliders.push(collider);
     });
 
-    const cylinders = floor.children.filter(child => child.name === 'Цилиндр' ||
-        child.name === 'Цилиндр1' ||
-        child.name === 'Цилиндр2' ||
-        child.name === 'Цилиндр3' ||
-        child.name === 'Цилиндр4' ||
-        child.name === 'Цилиндр5' ||
-        child.name === 'Цилиндр6' ||
-        child.name === 'Цилиндр7' ||
-        child.name === 'Цилиндр8');
+    const cylinders = floor.children.filter(child => child.name.startsWith('Цилиндр') || child.name.startsWith('фонарь'));
 
     cylinders.forEach(cylinder => {
         const collider = new THREE.Box3().setFromObject(cylinder);
@@ -177,7 +168,27 @@ loader.load('/models/pol.glb', (gltf) => {
 
         scene.add(colliderBox);
         colliderModels.push(cylinder);
+
+        if (cylinder.name.startsWith('фонарь')) {
+            const light = new THREE.PointLight(0xffffff, 10, 15, 1.6);
+            light.position.copy(collider.getCenter(new THREE.Vector3()));
+            light.position.y = 5.65;
+            light.castShadow = true;
+            scene.add(light);
+
+            light.shadow.mapSize.width = 512;
+            light.shadow.mapSize.height = 512;
+            light.shadow.camera.near = 0.5;
+            light.shadow.camera.far = 50;
+
+            setInterval(() => {
+                light.visible = !light.visible;
+            }, Math.random() * 2500 + 500);
+        }
     });
+
+    const ambientLight = new THREE.AmbientLight(0x606060);
+    scene.add(ambientLight);
 
     scene.add(floor);
 }, undefined, (error) => {
@@ -316,10 +327,10 @@ loadImages();
 /**
  * Lights
  */
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
 directionalLight.position.set(5, 5, 5);
 scene.add(directionalLight);
 
@@ -439,7 +450,7 @@ window.addEventListener('keyup', (event) => {
 });
 
 let trashModels = [];
-let trashLoadedCount = 0;
+let bottleModels = []; 
 
 const trashPositions = [
     { x: 6, y: 0.2, z: 1.4 },
@@ -449,57 +460,55 @@ const trashPositions = [
     { x: -23, y: 0.2, z: -5.5 },
 ];
 
-const loadertrash = new GLTFLoader();
+const bottlePositions = [ 
+    { x: 4, y: 0.2, z: 3.0 },
+    { x: 4, y: 0.2, z: 22.0 },
+    { x: -24, y: 0.2, z: -5.0 },
+    { x: 35, y: 0.2, z: -6.0 },
+    { x: 4.5, y: 0.2, z: -25.0 },
+];
+
+const loaderTrash = new GLTFLoader();
+const loaderBottle = new GLTFLoader(); 
 
 trashPositions.forEach(position => {
-    loadertrash.load('/models/trash.glb', (gltf) => {
+    loaderTrash.load('/models/trash.glb', (gltf) => {
         const trash = gltf.scene;
         trash.position.set(position.x, position.y, position.z);
         trash.scale.set(0.4, 0.4, 0.4);
         scene.add(trash);
         trashModels.push(trash);
-        trashLoadedCount++;
     }, undefined, (error) => {
         console.error('Ошибка загрузки модели trash:', error);
+    });
+});
+
+bottlePositions.forEach(position => {
+    loaderBottle.load('/models/paper.glb', (gltf) => {
+        const bottle = gltf.scene;
+        bottle.position.set(position.x, position.y, position.z);
+        bottle.scale.set(1.27, 1.2, 1.27);
+        scene.add(bottle);
+        bottleModels.push(bottle);
+    }, undefined, (error) => {
+        console.error('Ошибка загрузки модели bottle:', error);
     });
 });
 
 let kickInProgress = false;
 let kickStartPosition = new THREE.Vector3();
 let kickEndPosition = new THREE.Vector3();
-let kickDuration = 500; 
+let kickDuration = 500;
 let kickStartTime = 0;
-const groundHeight = 0.63;
+const groundHeight = 0.66;
 
 const maxRotationZ = Math.PI / 7;
-const rotationSpeed = 0.04; 
+const rotationSpeed = 0.04;
 const minDistance = 1;
-const kickStates = Array(trashModels.length).fill(false);
+const kickStates = Array(trashModels.length).fill(false).concat(Array(bottleModels.length).fill(false)); 
 const firstKick = {};
 
-function kickTrash(trash, index) {
-    if (kickInProgress || !trash) return;
-
-    kickStates[index] = true;
-    firstKick[index] = true;
-
-    trash.updateMatrixWorld();
-
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
-    direction.y = 0;
-    direction.normalize();
-
-    const kickForce = 7.8; // Увеличьте это значение для большего расстояния
-    kickStartPosition.copy(trash.position);
-    kickEndPosition.copy(trash.position).add(direction.clone().multiplyScalar(kickForce));
-    kickStartTime = performance.now();
-    kickInProgress = true;
-
-    animateKick(trash, index);
-}
-
-function animateKick(trash, index) {
+function animateKick(object, index) {
     if (!kickInProgress) return;
 
     const currentTime = performance.now();
@@ -507,73 +516,142 @@ function animateKick(trash, index) {
     const t = Math.min(elapsedTime / kickDuration, 1);
 
     const newPosition = new THREE.Vector3().lerpVectors(kickStartPosition, kickEndPosition, t);
-    newPosition.y = Math.max(newPosition.y, groundHeight); 
+    newPosition.y = Math.max(newPosition.y, groundHeight);
 
-    if (checkTrashCollisionWithColliders(trash, newPosition)) {
+    if (checkCollisionWithColliders(object, newPosition)) {
         kickInProgress = false;
-        kickStates[index] = false;
-        return; 
+        kickStates[index] = false; 
+        return;
     } else {
-        trash.position.copy(newPosition); 
+        object.position.copy(newPosition);
     }
-
+   
     if (firstKick[index]) {
         const targetRotationX = Math.PI / 2;
-        trash.rotation.x += (targetRotationX - trash.rotation.x) * 0.1;
-        if (Math.abs(trash.rotation.x - targetRotationX) < 0.01) {
-            trash.rotation.x = targetRotationX;
+        object.rotation.x += (targetRotationX - object.rotation.x) * 0.1;
+        if (Math.abs(object.rotation.x - targetRotationX) < 0.01) {
+            object.rotation.x = targetRotationX;
             firstKick[index] = false;
         }
     } else {
-        trash.rotation.y += rotationSpeed;
-        trash.rotation.z += (Math.random() - 0.5) * rotationSpeed;
-        trash.rotation.z = THREE.MathUtils.clamp(trash.rotation.z, -maxRotationZ, maxRotationZ);
+        object.rotation.y += rotationSpeed;
+        object.rotation.z += (Math.random() - 0.5) * rotationSpeed;
+        object.rotation.z = THREE.MathUtils.clamp(object.rotation.z, -maxRotationZ, maxRotationZ);
+        if (bottleModels.includes(object)) {
+            object.position.y = 0.2; 
+        }
     }
-
+    
     if (t < 1) {
-        requestAnimationFrame(() => animateKick(trash, index));
+        requestAnimationFrame(() => animateKick(object, index));
     } else {
-        finalizeKick(trash);
+        finalizeKick(object);
     }
 }
 
-function finalizeKick(trash) {
-    const box = new THREE.Box3().setFromObject(trash);
+function finalizeKick(object) {
+    const box = new THREE.Box3().setFromObject(object);
     const size = new THREE.Vector3();
     box.getSize(size);
     let targetRotation;
-    let targetPosition = new THREE.Vector3(trash.position.x, groundHeight, trash.position.z); 
+    let targetPosition = new THREE.Vector3(object.position.x, groundHeight, object.position.z);
+
+    if (bottleModels.includes(object)) {
+        targetPosition.y = 0.2; 
+    }
 
     if (size.x > size.z) {
         targetRotation = new THREE.Euler(0, 0, Math.PI / 2);
     } else {
-        targetRotation = new THREE.Euler(Math.PI / 2, 0, 0); 
+        targetRotation = new THREE.Euler(Math.PI / 2, 0, 0);
     }
 
-    smoothTransitionToEdge(trash, targetPosition, targetRotation);
+    smoothTransitionToEdge(object, targetPosition, targetRotation);
     kickInProgress = false;
-    kickStates[trashModels.indexOf(trash)] = false; 
-    console.log(`Kick completed for trash at position ${trash.position}`);
+
+    const index = trashModels.indexOf(object);
+    if (index === -1) {
+        const bottleIndex = bottleModels.indexOf(object);
+        if (bottleIndex !== -1) {
+            kickStates[trashModels.length + bottleIndex] = false; 
+        }
+    } else {
+        kickStates[index] = false; 
+    }
 }
 
-function checkTrashCollisionWithColliders(trash, newPosition) {
-    const trashBox = new THREE.Box3().setFromObject(trash);
-    trashBox.setFromCenterAndSize(newPosition, new THREE.Vector3(0.4, 0.4, 0.4)); 
+function checkCollisionWithColliders(object, newPosition) {
+    const box = new THREE.Box3().setFromObject(object);
+    box.setFromCenterAndSize(newPosition, new THREE.Vector3(0.4, 0.4, 0.4)); 
 
     return colliderModels.some(collider => {
         const colliderBox = new THREE.Box3().setFromObject(collider);
-        return trashBox.intersectsBox(colliderBox);
+        return box.intersectsBox(colliderBox);
     });
 }
 
+function checkObjectCollision() {
+    if (!model || (trashModels.length === 0 && bottleModels.length === 0)) return;
+
+    const playerBox = new THREE.Box3().setFromObject(model);
+
+    for (let i = 0; i < trashModels.length; i++) {
+        const trash = trashModels[i];
+        const trashBox = new THREE.Box3().setFromObject(trash);
+        if (playerBox.intersectsBox(trashBox) && !kickStates[i]) {
+            kickTrash(trash, i);
+            break;
+        }
+    }
+
+    for (let i = 0; i < bottleModels.length; i++) {
+        const bottle = bottleModels[i];
+        const bottleBox = new THREE.Box3().setFromObject(bottle);
+    
+        const scaleFactor = 1.5; 
+        const enlargedBox = new THREE.Box3(
+            new THREE.Vector3(bottleBox.min.x - (bottleBox.getSize(new THREE.Vector3()).x * (scaleFactor - 1) / 2),
+                              bottleBox.min.y - (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
+                              bottleBox.min.z - (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2)),
+            new THREE.Vector3(bottleBox.max.x + (bottleBox.getSize(new THREE.Vector3()).x * (scaleFactor - 1) / 2),
+                              bottleBox.max.y + (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
+                              bottleBox.max.z + (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2))
+        );
+    
+        if (playerBox.intersectsBox(enlargedBox) && !kickStates[trashModels.length + i]) {
+            kickBottle(bottle, trashModels.length + i); 
+            break;
+        }
+    }
+}
+
+function kickBottle(bottle, index) {
+    if (kickInProgress || !bottle) return;
+    kickStates[index] = true;
+    firstKick[index] = true;
+
+    bottle.updateMatrixWorld();
+
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+
+    const kickForce = 8.8;
+    kickStartPosition.copy(bottle.position);
+    kickEndPosition.copy(bottle.position).add(direction.clone().multiplyScalar(kickForce));
+    kickStartTime = performance.now();
+    kickInProgress = true;
+    animateKick(bottle, index);
+}
+
+
 function smoothTransitionToEdge(trash, targetPosition, targetRotation) {
-    const transitionDuration = 570; // Длительность перехода в миллисекундах
+    const transitionDuration = 570;
     const startTime = performance.now();
 
-    // Генерация случайного вращения по оси Z
-    const randomRotationZ = (Math.random() * (Math.PI / 4)) - (Math.PI / 8); // Случайное вращение от -π/8 до π/8
+    const randomRotationZ = (Math.random() * (Math.PI / 4)) - (Math.PI / 8); 
 
-    // Преобразуем целевое вращение в кватернион
     const targetQuaternion = new THREE.Quaternion().setFromEuler(targetRotation);
     const startQuaternion = new THREE.Quaternion().copy(trash.quaternion);
 
@@ -585,7 +663,7 @@ function smoothTransitionToEdge(trash, targetPosition, targetRotation) {
         const currentTime = performance.now();
         const elapsedTime = currentTime - startTime;
         const t = Math.min(elapsedTime / transitionDuration, 1);
-        const easedT = easeInOutCubic(t); 
+        const easedT = easeInOutCubic(t);
 
         trash.position.lerp(targetPosition, easedT);
 
@@ -593,27 +671,32 @@ function smoothTransitionToEdge(trash, targetPosition, targetRotation) {
         trash.quaternion.copy(interpolatedQuaternion);
 
         trash.position.copy(targetPosition);
-        trash.quaternion.copy(targetQuaternion); 
-        trash.rotation.z += randomRotationZ; 
+        trash.quaternion.copy(targetQuaternion);
+        trash.rotation.z += randomRotationZ;
     }
 
     animateTransition();
 }
 
-function checkTrashCollision() {
-    if (!model || trashModels.length === 0) return;
+function kickTrash(trash, index) {
+    if (kickInProgress || !trash) return;
+    kickStates[index] = true;
+    firstKick[index] = true;
 
-    const playerBox = new THREE.Box3().setFromObject(model);
+    trash.updateMatrixWorld();
 
-    for (let i = 0; i < trashModels.length; i++) {
-        const trash = trashModels[i];
-        const trashBox = new THREE.Box3().setFromObject(trash);
-        if (playerBox.intersectsBox(trashBox) && !kickStates[i]) {
-            kickTrash(trash, i);
-            console.log(`Attempting to kick trash at index ${i}`);
-            break;
-        }
-    }
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+
+    const kickForce = 7.8;
+    kickStartPosition.copy(trash.position);
+    kickEndPosition.copy(trash.position).add(direction.clone().multiplyScalar(kickForce));
+    kickStartTime = performance.now();
+    kickInProgress = true;
+
+    animateKick(trash, index);
 }
 
 function checkTrashOverlap() {
@@ -636,7 +719,6 @@ function checkTrashOverlap() {
         }
     }
 }
-
 /**
  * Animate
  */
@@ -712,8 +794,8 @@ const tick = () => {
         if (!checkCollisions(newPosition)) {
             model.position.copy(newPosition);
         }
-
-        checkTrashCollision();
+        
+        checkObjectCollision();
 
         let rotationSpeed = 0.01;
         if (keys.a || keys.d) {
@@ -753,9 +835,9 @@ const tick = () => {
     updateSnowflakes();
     updateCameraPosition();
     checkTrashOverlap();
+    
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
 };
-
 
 tick();
