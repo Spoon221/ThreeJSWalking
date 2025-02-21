@@ -1,14 +1,56 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import GUI from 'lil-gui';
 
 /**
  * Base
  */
-const gui = new GUI();
 const canvas = document.querySelector('canvas.webgl');
 const scene = new THREE.Scene();
+
+const textureLoader = new THREE.TextureLoader();
+let blackImageMesh;
+
+textureLoader.load('/models/black.png', (texture) => {
+    const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+
+    const planeGeometry = new THREE.PlaneGeometry(20, 20);
+    blackImageMesh = new THREE.Mesh(planeGeometry, material);
+    blackImageMesh.position.set(0, 0, 0);
+    scene.add(blackImageMesh);
+
+    setTimeout(() => {
+        animateOpacity(material);
+    }, 2500);
+}, undefined, (error) => {
+    console.error('Ошибка загрузки текстуры:', error);
+});
+
+function animateOpacity(material) {
+    const fadeDuration = 2000;
+    const startTime = performance.now();
+
+    function fade() {
+        const currentTime = performance.now();
+        const elapsedTime = currentTime - startTime;
+        const t = Math.min(elapsedTime / fadeDuration, 1);
+
+        material.opacity = 1 - t;
+
+        if (t < 1) {
+            requestAnimationFrame(fade);
+        } else {
+            material.opacity = 0;
+        }
+    }
+
+    fade();
+}
+
 /**
  * Fog
  */
@@ -42,6 +84,7 @@ for (let i = 0; i < snowflakeCount; i++) {
     snowflake.scale.set(scale, scale, scale);
     snowflake.speed = Math.random() * 0.005 + 0.005;
     snowflake.material.opacity = Math.random() * 0.5 + 0.3;
+    snowflake.rotation.y = Math.random() * Math.PI * 2;
 
     snowflakes.push(snowflake);
     scene.add(snowflake);
@@ -54,7 +97,6 @@ function updateSnowflakes() {
         snowflake.position.y -= snowflake.speed;
 
         snowflake.speed = Math.random() * 0.005 + 0.005;
-        snowflake.rotation.z += 0.01;
         if (snowflake.position.y < 0) {
             snowflake.position.y = Math.random() * 10;
             snowflake.position.x = Math.random() * (maxX - minX) + minX;
@@ -65,63 +107,6 @@ function updateSnowflakes() {
 
 /**
  * Models
- */
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('/draco/');
-
-const gltfLoader = new GLTFLoader();
-
-let mixer = null;
-let model = null;
-let animations = [];
-let currentAction = null;
-
-const colliderModels = [];
-const colliderPositions = [
-    { x: 10.5, y: 0, z: 23.5 },
-];
-
-function createShadowMesh(size, position, opacity) {
-    const shadowGeometry = new THREE.CircleGeometry(size.width, 32);
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: opacity,
-        depthWrite: false
-    });
-
-    const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
-    shadowMesh.scale.set(2.45, size.height / size.width + 1, 2.45);
-    shadowMesh.position.set(position.x - 2, 0.01, position.z + 0.5);
-    shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.rotation.z = -Math.PI / 1.2;
-    return shadowMesh;
-}
-
-gltfLoader.load('/models/pet.glb', (gltf) => {
-    model = gltf.scene;
-    model.position.y = 1.6;
-    model.scale.set(1.4, 1.4, 1.4);
-    colliderModels.push(model);
-    scene.add(model);
-
-    mixer = new THREE.AnimationMixer(model);
-    animations = gltf.animations;
-
-    if (animations.length > 0) {
-        currentAction = mixer.clipAction(animations[0]);
-    }
-
-    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
-    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
-    collider.position.copy(model.position);
-    collider.scale.set(0.45, 1, 0.45);
-    scene.add(collider);
-});
-
-/**
- * Floor
  */
 let isInSnow = false;
 const snowSpeedFactor = 0.5;
@@ -195,11 +180,68 @@ loader.load('/models/pol.glb', (gltf) => {
     console.error('Ошибка загрузки модели:', error);
 });
 
-colliderPositions.forEach(position => {
+const gltfLoader = new GLTFLoader();
+
+let mixer = null;
+let model = null;
+let animations = [];
+let currentAction = null;
+
+const colliderModels = [];
+const colliderPositions = [
+    { x: 10.5, y: 0, z: 23.5 },
+    { x: 2.35, y: 0, z: 46 },
+];
+
+function createShadowMesh(size, position, opacity) {
+    const shadowGeometry = new THREE.CircleGeometry(size.width, 32);
+    const shadowMaterial = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: opacity,
+        depthWrite: false
+    });
+
+    const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+    shadowMesh.scale.set(2.45, size.height / size.width + 1, 2.45);
+    shadowMesh.position.set(position.x - 2, 0.01, position.z + 0.5);
+    shadowMesh.rotation.x = -Math.PI / 2;
+    shadowMesh.rotation.z = -Math.PI / 1.2;
+    return shadowMesh;
+}
+
+gltfLoader.load('/models/pet.glb', (gltf) => {
+    model = gltf.scene;
+    model.position.y = 1.6;
+    model.scale.set(1.4, 1.4, 1.4);
+    colliderModels.push(model);
+    scene.add(model);
+
+    mixer = new THREE.AnimationMixer(model);
+    animations = gltf.animations;
+
+    if (animations.length > 0) {
+        currentAction = mixer.clipAction(animations[0]);
+    }
+
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
+    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
+    collider.position.copy(model.position);
+    collider.scale.set(0.45, 1, 0.45);
+    scene.add(collider);
+});
+
+/**
+ * Floor
+ */
+colliderPositions.forEach((position, index) => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
-        colliderModel.rotation.y = 90;
+
+        colliderModel.rotation.y = index === 1 ? Math.PI / 2 : 90;
+
         scene.add(colliderModel);
         colliderModels.push(colliderModel);
 
@@ -209,9 +251,24 @@ colliderPositions.forEach(position => {
         ];
         const shadowOpacities = [0.15, 0.2];
 
-        shadowSizes.forEach((size, index) => {
-            const shadowMesh = createShadowMesh(size, position, shadowOpacities[index]);
-            shadowMesh.position.y += 0.099
+        shadowSizes.forEach((size, shadowIndex) => {
+            const shadowMesh = createShadowMesh(size, position, shadowOpacities[shadowIndex]);
+            shadowMesh.position.y += 0.1;
+
+            if (index === 1) {
+                if (shadowIndex === 0) {
+                    shadowMesh.rotation.z = 0;
+                    shadowMesh.position.z -= 0.5;
+                    shadowMesh.position.y -= 0.105;
+                } else {
+                    shadowMesh.rotation.z = 0;
+                    shadowMesh.position.z -= 0.5;
+                    shadowMesh.position.y -= 0.105;
+                }
+            } else {
+                shadowMesh.rotation.z = Math.PI / 4;
+            }
+
             scene.add(shadowMesh);
         });
     });
@@ -289,15 +346,51 @@ const imagesData = [
     },
     {
         url: '/models/react.png',
-        position: { x: -47.7, y: 3.5, z: -0.9 },
+        position: { x: -47.7, y: 3, z: -0.9 },
         rotation: { x: 0, y: 94 * (Math.PI / 180) - 0.1, z: 0 },
         scale: { x: 1.15, y: 1, z: 1 }
     },
     {
         url: '/models/iconReact.png',
-        position: { x: -47.7, y: 7, z: -0.9 },
+        position: { x: -47.7, y: 6, z: -0.9 },
         rotation: { x: 0, y: 94 * (Math.PI / 180) - 0.1, z: 0 },
         scale: { x: 0.8, y: 1, z: 1 }
+    },
+    {
+        url: '/models/python.png',
+        position: { x: -1.52, y: 4.3, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.4, y: 0.5, z: 1 }
+    },
+    {
+        url: '/models/threejs.png',
+        position: { x: -1.52, y: 2.7, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.4, y: 0.5, z: 1 }
+    },
+    {
+        url: '/models/js.png',
+        position: { x: -0.25, y: 3.5, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.4, y: 0.5, z: 1 }
+    },
+    {
+        url: '/models/c++.png',
+        position: { x: 1, y: 2.7, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.4, y: 0.5, z: 1 }
+    },
+    {
+        url: '/models/logounity.png',
+        position: { x: 1.05, y: 4.3, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.35, y: 0.45, z: 1 }
+    },
+    {
+        url: '/models/iconReact.png',
+        position: { x: 2.2, y: 3.5, z: 45.7 },
+        rotation: { x: 0, y: 3.2, z: 0 },
+        scale: { x: 0.35, y: 0.45, z: 1 }
     },
 ];
 
@@ -342,30 +435,11 @@ const sizes = {
     height: window.innerHeight
 };
 
-window.addEventListener('resize', () => {
-    sizes.width = window.innerWidth;
-    sizes.height = window.innerHeight;
-
-    camera.aspect = sizes.width / sizes.height;
-    camera.updateProjectionMatrix();
-    renderer.setSize(sizes.width, sizes.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-});
-
 /**
  * Camera
  */
-const camera = new THREE.PerspectiveCamera(70, sizes.width / sizes.height, 0.1, 1000);
-camera.position.set(0, 2, 5);
-scene.add(camera);
+const camera = new THREE.PerspectiveCamera(70, sizes.width / sizes.height, 0.1, 84);
 const raycaster = new THREE.Raycaster();
-const cameraDirection = new THREE.Vector3();
-
-function updateCameraPosition() {
-    camera.getWorldDirection(cameraDirection);
-    cameraDirection.y = 0;
-    cameraDirection.normalize();
-}
 
 function createButton(position, url) {
     const buttonWidth = 3;
@@ -415,6 +489,16 @@ window.addEventListener('click', (event) => {
     });
 });
 
+window.addEventListener('mousemove', (event) => {
+    mouse.x = (event.clientX / sizes.width) * 2 - 1;
+    mouse.y = -(event.clientY / sizes.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children);
+
+    const isHovering = intersects.some(intersect => intersect.object.isButton);
+
+    document.body.style.cursor = isHovering ? 'pointer' : 'auto';
+});
 /**
  * Renderer
  */
@@ -450,7 +534,7 @@ window.addEventListener('keyup', (event) => {
 });
 
 let trashModels = [];
-let bottleModels = []; 
+let bottleModels = [];
 
 const trashPositions = [
     { x: 6, y: 0.2, z: 1.4 },
@@ -460,7 +544,7 @@ const trashPositions = [
     { x: -23, y: 0.2, z: -5.5 },
 ];
 
-const bottlePositions = [ 
+const bottlePositions = [
     { x: 4, y: 0.2, z: 3.0 },
     { x: 4, y: 0.2, z: 22.0 },
     { x: -24, y: 0.2, z: -5.0 },
@@ -469,7 +553,7 @@ const bottlePositions = [
 ];
 
 const loaderTrash = new GLTFLoader();
-const loaderBottle = new GLTFLoader(); 
+const loaderBottle = new GLTFLoader();
 
 trashPositions.forEach(position => {
     loaderTrash.load('/models/trash.glb', (gltf) => {
@@ -505,7 +589,7 @@ const groundHeight = 0.66;
 const maxRotationZ = Math.PI / 7;
 const rotationSpeed = 0.04;
 const minDistance = 1;
-const kickStates = Array(trashModels.length).fill(false).concat(Array(bottleModels.length).fill(false)); 
+const kickStates = Array(trashModels.length).fill(false).concat(Array(bottleModels.length).fill(false));
 const firstKick = {};
 
 function animateKick(object, index) {
@@ -520,12 +604,12 @@ function animateKick(object, index) {
 
     if (checkCollisionWithColliders(object, newPosition)) {
         kickInProgress = false;
-        kickStates[index] = false; 
+        kickStates[index] = false;
         return;
     } else {
         object.position.copy(newPosition);
     }
-   
+
     if (firstKick[index]) {
         const targetRotationX = Math.PI / 2;
         object.rotation.x += (targetRotationX - object.rotation.x) * 0.1;
@@ -538,10 +622,10 @@ function animateKick(object, index) {
         object.rotation.z += (Math.random() - 0.5) * rotationSpeed;
         object.rotation.z = THREE.MathUtils.clamp(object.rotation.z, -maxRotationZ, maxRotationZ);
         if (bottleModels.includes(object)) {
-            object.position.y = 0.2; 
+            object.position.y = 0.2;
         }
     }
-    
+
     if (t < 1) {
         requestAnimationFrame(() => animateKick(object, index));
     } else {
@@ -557,7 +641,7 @@ function finalizeKick(object) {
     let targetPosition = new THREE.Vector3(object.position.x, groundHeight, object.position.z);
 
     if (bottleModels.includes(object)) {
-        targetPosition.y = 0.2; 
+        targetPosition.y = 0.2;
     }
 
     if (size.x > size.z) {
@@ -573,16 +657,16 @@ function finalizeKick(object) {
     if (index === -1) {
         const bottleIndex = bottleModels.indexOf(object);
         if (bottleIndex !== -1) {
-            kickStates[trashModels.length + bottleIndex] = false; 
+            kickStates[trashModels.length + bottleIndex] = false;
         }
     } else {
-        kickStates[index] = false; 
+        kickStates[index] = false;
     }
 }
 
 function checkCollisionWithColliders(object, newPosition) {
     const box = new THREE.Box3().setFromObject(object);
-    box.setFromCenterAndSize(newPosition, new THREE.Vector3(0.4, 0.4, 0.4)); 
+    box.setFromCenterAndSize(newPosition, new THREE.Vector3(0.4, 0.4, 0.4));
 
     return colliderModels.some(collider => {
         const colliderBox = new THREE.Box3().setFromObject(collider);
@@ -607,19 +691,19 @@ function checkObjectCollision() {
     for (let i = 0; i < bottleModels.length; i++) {
         const bottle = bottleModels[i];
         const bottleBox = new THREE.Box3().setFromObject(bottle);
-    
-        const scaleFactor = 1.5; 
+
+        const scaleFactor = 1.5;
         const enlargedBox = new THREE.Box3(
             new THREE.Vector3(bottleBox.min.x - (bottleBox.getSize(new THREE.Vector3()).x * (scaleFactor - 1) / 2),
-                              bottleBox.min.y - (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
-                              bottleBox.min.z - (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2)),
+                bottleBox.min.y - (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
+                bottleBox.min.z - (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2)),
             new THREE.Vector3(bottleBox.max.x + (bottleBox.getSize(new THREE.Vector3()).x * (scaleFactor - 1) / 2),
-                              bottleBox.max.y + (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
-                              bottleBox.max.z + (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2))
+                bottleBox.max.y + (bottleBox.getSize(new THREE.Vector3()).y * (scaleFactor - 1) / 2),
+                bottleBox.max.z + (bottleBox.getSize(new THREE.Vector3()).z * (scaleFactor - 1) / 2))
         );
-    
+
         if (playerBox.intersectsBox(enlargedBox) && !kickStates[trashModels.length + i]) {
-            kickBottle(bottle, trashModels.length + i); 
+            kickBottle(bottle, trashModels.length + i);
             break;
         }
     }
@@ -650,7 +734,7 @@ function smoothTransitionToEdge(trash, targetPosition, targetRotation) {
     const transitionDuration = 570;
     const startTime = performance.now();
 
-    const randomRotationZ = (Math.random() * (Math.PI / 4)) - (Math.PI / 8); 
+    const randomRotationZ = (Math.random() * (Math.PI / 4)) - (Math.PI / 8);
 
     const targetQuaternion = new THREE.Quaternion().setFromEuler(targetRotation);
     const startQuaternion = new THREE.Quaternion().copy(trash.quaternion);
@@ -768,6 +852,17 @@ const tick = () => {
     const deltaTime = elapsedTime - previousTime;
     previousTime = elapsedTime;
 
+    if (blackImageMesh) {
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+
+        blackImageMesh.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
+
+        blackImageMesh.lookAt(camera.position);
+    }
+
     if (mixer) {
         mixer.update(deltaTime);
     }
@@ -794,7 +889,7 @@ const tick = () => {
         if (!checkCollisions(newPosition)) {
             model.position.copy(newPosition);
         }
-        
+
         checkObjectCollision();
 
         let rotationSpeed = 0.01;
@@ -833,9 +928,8 @@ const tick = () => {
 
     updateAnimation();
     updateSnowflakes();
-    updateCameraPosition();
     checkTrashOverlap();
-    
+
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
 };
