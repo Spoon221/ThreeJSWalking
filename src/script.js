@@ -1,5 +1,28 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { gsap } from 'gsap'
+
+const loadingBarElement = document.querySelector('.loading-bar');
+const overlayElement = document.querySelector('.loading-overlay');
+
+const loadingManager = new THREE.LoadingManager(
+    () => {
+        window.setTimeout(() => {
+            gsap.to(overlayMaterial.uniforms.uAlpha, { duration: 3, value: 0, delay: 1 })
+
+            loadingBarElement.classList.add('ended')
+            loadingBarElement.style.transform = ''
+        }, 500)
+    },
+
+    (itemUrl, itemsLoaded, itemsTotal) => {
+        const progressRatio = itemsLoaded / itemsTotal
+        loadingBarElement.style.transform = `scaleX(${progressRatio})`
+    }
+)
+
+const loader = new GLTFLoader(loadingManager);
+const gltfLoader = new GLTFLoader(loadingManager);
 
 /**
  * Base
@@ -7,50 +30,29 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const canvas = document.querySelector('canvas.webgl');
 const scene = new THREE.Scene();
 
-const textureLoader = new THREE.TextureLoader();
-let blackImageMesh;
-
-textureLoader.load('/models/black.png', (texture) => {
-    const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        opacity: 1,
-        side: THREE.DoubleSide
-    });
-
-    const planeGeometry = new THREE.PlaneGeometry(20, 20);
-    blackImageMesh = new THREE.Mesh(planeGeometry, material);
-    blackImageMesh.position.set(0, 0, 0);
-    scene.add(blackImageMesh);
-
-    setTimeout(() => {
-        animateOpacity(material);
-    }, 2500);
-}, undefined, (error) => {
-    console.error('Ошибка загрузки текстуры:', error);
-});
-
-function animateOpacity(material) {
-    const fadeDuration = 2000;
-    const startTime = performance.now();
-
-    function fade() {
-        const currentTime = performance.now();
-        const elapsedTime = currentTime - startTime;
-        const t = Math.min(elapsedTime / fadeDuration, 1);
-
-        material.opacity = 1 - t;
-
-        if (t < 1) {
-            requestAnimationFrame(fade);
-        } else {
-            material.opacity = 0;
+const overlayGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
+const overlayMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    uniforms: {
+        uAlpha: { value: 1 }
+    },
+    vertexShader: `
+        void main()
+        {
+            gl_Position = vec4(position, 1.0);
         }
-    }
+    `,
+    fragmentShader: `
+        uniform float uAlpha;
 
-    fade();
-}
-
+        void main()
+        {
+            gl_FragColor = vec4(211.0 / 255.0, 211.0 / 255.0, 211.0 / 255.0, uAlpha);
+        }
+    `
+});
+const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
+scene.add(overlay);
 /**
  * Fog
  */
@@ -112,7 +114,6 @@ let isInSnow = false;
 const snowSpeedFactor = 0.5;
 let snowColliders = [];
 
-const loader = new GLTFLoader();
 loader.load('/models/pol.glb', (gltf) => {
     const floor = gltf.scene;
     floor.scale.set(1, 1, 1);
@@ -179,8 +180,6 @@ loader.load('/models/pol.glb', (gltf) => {
 }, undefined, (error) => {
     console.error('Ошибка загрузки модели:', error);
 });
-
-const gltfLoader = new GLTFLoader();
 
 let mixer = null;
 let model = null;
@@ -851,17 +850,6 @@ const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
     previousTime = elapsedTime;
-
-    if (blackImageMesh) {
-        const cameraDirection = new THREE.Vector3();
-        camera.getWorldDirection(cameraDirection);
-        cameraDirection.y = 0;
-        cameraDirection.normalize();
-
-        blackImageMesh.position.copy(camera.position).add(cameraDirection.multiplyScalar(1.5));
-
-        blackImageMesh.lookAt(camera.position);
-    }
 
     if (mixer) {
         mixer.update(deltaTime);
