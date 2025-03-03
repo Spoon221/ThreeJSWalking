@@ -3,7 +3,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { gsap } from 'gsap'
 
 const loadingBarElement = document.querySelector('.loading-bar');
-const overlayElement = document.querySelector('.loading-overlay');
 
 const loadingManager = new THREE.LoadingManager(
     () => {
@@ -61,6 +60,12 @@ const nearFog = 1;
 const farFog = 50;
 scene.fog = new THREE.Fog(fogColor, nearFog, farFog);
 
+const snowflakeCount = 500;
+const minX = -40;
+const maxX = 40;
+const minZ = -40;
+const maxZ = 40;
+
 const snowflakeGeometry = new THREE.CircleGeometry(0.05, 8);
 const snowflakeMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -69,42 +74,45 @@ const snowflakeMaterial = new THREE.MeshBasicMaterial({
     side: THREE.DoubleSide
 });
 
-const snowflakes = [];
-const snowflakeCount = 500;
-const minX = -40;
-const maxX = 40;
-const minZ = -40;
-const maxZ = 40;
+const snowflakes = new THREE.InstancedMesh(snowflakeGeometry, snowflakeMaterial, snowflakeCount);
 
 for (let i = 0; i < snowflakeCount; i++) {
-    const snowflake = new THREE.Mesh(snowflakeGeometry, snowflakeMaterial);
-
-    snowflake.position.x = Math.random() * (maxX - minX) + minX;
-    snowflake.position.y = Math.random() * 10;
-    snowflake.position.z = Math.random() * (maxZ - minZ) + minZ;
+    const matrix = new THREE.Matrix4();
+    const x = Math.random() * (maxX - minX) + minX;
+    const y = Math.random() * 10;
+    const z = Math.random() * (maxZ - minZ) + minZ;
     const scale = Math.random() * 0.5 + 0.5;
-    snowflake.scale.set(scale, scale, scale);
-    snowflake.speed = Math.random() * 0.005 + 0.005;
-    snowflake.material.opacity = Math.random() * 0.5 + 0.3;
-    snowflake.rotation.y = Math.random() * Math.PI * 2;
 
-    snowflakes.push(snowflake);
-    scene.add(snowflake);
+    matrix.setPosition(x, y, z);
+    matrix.scale(new THREE.Vector3(scale, scale, scale));
+    snowflakes.setMatrixAt(i, matrix);
 }
 
+scene.add(snowflakes);
+
 function updateSnowflakes() {
-    for (let i = 0; i < snowflakes.length; i++) {
-        const snowflake = snowflakes[i];
+    for (let i = 0; i < snowflakeCount; i++) {
+        const matrix = new THREE.Matrix4();
+        snowflakes.getMatrixAt(i, matrix);
 
-        snowflake.position.y -= snowflake.speed;
-
-        snowflake.speed = Math.random() * 0.005 + 0.005;
-        if (snowflake.position.y < 0) {
-            snowflake.position.y = Math.random() * 10;
-            snowflake.position.x = Math.random() * (maxX - minX) + minX;
-            snowflake.position.z = Math.random() * (maxZ - minZ) + minZ;
+        const position = new THREE.Vector3();
+        const scale = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        matrix.decompose(position, quaternion, scale); 
+        position.y -= Math.random() * 0.005 + 0.005; 
+        if (position.y < 0) {
+            position.y = Math.random() * 10;
+            position.x = Math.random() * (maxX - minX) + minX;
+            position.z = Math.random() * (maxZ - minZ) + minZ;
         }
+
+        const rotationSpeed = 0.01; 
+        quaternion.multiplyQuaternions(quaternion, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotationSpeed, 0)));
+
+        matrix.compose(position, quaternion, scale);
+        snowflakes.setMatrixAt(i, matrix);
     }
+    snowflakes.instanceMatrix.needsUpdate = true;
 }
 
 /**
@@ -119,63 +127,6 @@ loader.load('/models/pol.glb', (gltf) => {
     floor.scale.set(1, 1, 1);
     floor.position.set(0, 0, 0);
 
-    const snowPiles = floor.children.filter(child =>
-        child.name === 'сугроб3' ||
-        child.name === 'сугроб4' ||
-        child.name === 'сугроб5' ||
-        child.name === 'сугроб6'
-    );
-
-    snowPiles.forEach(snowPile => {
-        const collider = new THREE.Box3().setFromObject(snowPile);
-        snowColliders.push(collider);
-    });
-
-    const cylinders = floor.children.filter(child => child.name.startsWith('Цилиндр') || child.name.startsWith('фонарь'));
-
-    cylinders.forEach(cylinder => {
-        const collider = new THREE.Box3().setFromObject(cylinder);
-
-        const size = collider.getSize(new THREE.Vector3());
-        const scaleFactor = 0.6;
-
-        const colliderBox = new THREE.Mesh(
-            new THREE.BoxGeometry(size.x * scaleFactor, size.y, size.z * scaleFactor),
-            new THREE.MeshBasicMaterial({
-                transparent: true,
-                opacity: 0,
-                depthWrite: false
-            })
-        );
-
-        colliderBox.position.set(collider.getCenter(new THREE.Vector3()).x,
-            collider.getCenter(new THREE.Vector3()).y,
-            collider.getCenter(new THREE.Vector3()).z);
-
-        scene.add(colliderBox);
-        colliderModels.push(cylinder);
-
-        if (cylinder.name.startsWith('фонарь')) {
-            const light = new THREE.PointLight(0xffffff, 10, 15, 1.6);
-            light.position.copy(collider.getCenter(new THREE.Vector3()));
-            light.position.y = 5.65;
-            light.castShadow = true;
-            scene.add(light);
-
-            light.shadow.mapSize.width = 512;
-            light.shadow.mapSize.height = 512;
-            light.shadow.camera.near = 0.5;
-            light.shadow.camera.far = 50;
-
-            setInterval(() => {
-                light.visible = !light.visible;
-            }, Math.random() * 2500 + 500);
-        }
-    });
-
-    const ambientLight = new THREE.AmbientLight(0x606060);
-    scene.add(ambientLight);
-
     scene.add(floor);
 }, undefined, (error) => {
     console.error('Ошибка загрузки модели:', error);
@@ -189,7 +140,6 @@ let currentAction = null;
 const colliderModels = [];
 const colliderPositions = [
     { x: 10.5, y: 0, z: 23.5 },
-    { x: 2.35, y: 0, z: 46 },
 ];
 
 function createShadowMesh(size, position, opacity) {
@@ -357,37 +307,37 @@ const imagesData = [
     },
     {
         url: '/models/python.png',
-        position: { x: -1.52, y: 4.3, z: 45.7 },
+        position: { x: -1.52, y: 4.3, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.4, y: 0.5, z: 1 }
     },
     {
         url: '/models/threejs.png',
-        position: { x: -1.52, y: 2.7, z: 45.7 },
+        position: { x: -1.52, y: 2.7, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.4, y: 0.5, z: 1 }
     },
     {
         url: '/models/js.png',
-        position: { x: -0.25, y: 3.5, z: 45.7 },
+        position: { x: -0.25, y: 3.5, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.4, y: 0.5, z: 1 }
     },
     {
         url: '/models/c++.png',
-        position: { x: 1, y: 2.7, z: 45.7 },
+        position: { x: 1.8, y: 2.7, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.4, y: 0.5, z: 1 }
     },
     {
         url: '/models/logounity.png',
-        position: { x: 1.05, y: 4.3, z: 45.7 },
+        position: { x: 1.75, y: 4.3, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.35, y: 0.45, z: 1 }
     },
     {
         url: '/models/iconReact.png',
-        position: { x: 2.2, y: 3.5, z: 45.7 },
+        position: { x: 3.1, y: 3.5, z: 47.8 },
         rotation: { x: 0, y: 3.2, z: 0 },
         scale: { x: 0.35, y: 0.45, z: 1 }
     },
@@ -919,6 +869,7 @@ const tick = () => {
     checkTrashOverlap();
 
     renderer.render(scene, camera);
+    console.log(renderer.info.render.calls);
     window.requestAnimationFrame(tick);
 };
 
