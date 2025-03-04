@@ -51,7 +51,7 @@ const overlayMaterial = new THREE.ShaderMaterial({
     `
 });
 const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
-scene.add(overlay);
+//scene.add(overlay);
 /**
  * Fog
  */
@@ -98,15 +98,15 @@ function updateSnowflakes() {
         const position = new THREE.Vector3();
         const scale = new THREE.Vector3();
         const quaternion = new THREE.Quaternion();
-        matrix.decompose(position, quaternion, scale); 
-        position.y -= Math.random() * 0.005 + 0.005; 
+        matrix.decompose(position, quaternion, scale);
+        position.y -= Math.random() * 0.005 + 0.005;
         if (position.y < 0) {
             position.y = Math.random() * 10;
             position.x = Math.random() * (maxX - minX) + minX;
             position.z = Math.random() * (maxZ - minZ) + minZ;
         }
 
-        const rotationSpeed = 0.01; 
+        const rotationSpeed = 0.01;
         quaternion.multiplyQuaternions(quaternion, new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotationSpeed, 0)));
 
         matrix.compose(position, quaternion, scale);
@@ -141,6 +141,74 @@ const colliderModels = [];
 const colliderPositions = [
     { x: 10.5, y: 0, z: 23.5 },
 ];
+const woodCollider = [
+    { x: -4.3, y: 0, z: 15 },
+    { x: 4, y: 0, z: 38.5 },
+    { x: -11, y: 0, z: 11 },
+    { x: -13, y: 0, z: 22 },
+    { x: -9, y: 0, z: 33 },
+    { x: -15, y: 0, z: 42 },
+    { x: -26, y: 0, z: 43 },
+    { x: -38, y: 0, z: 43 },
+    { x: -22.5, y: 0, z: 29 },
+    { x: -30, y: 0, z: 28 },
+    { x: -28, y: 0, z: 20 },
+    { x: -37, y: 0, z: 22 },
+    { x: -38, y: 0, z: 11 },
+    { x: -29.6, y: 0, z: 10 },
+    { x: -21, y: 0, z: 7.5 },
+    { x: -16.5, y: 0, z: 5.8 },
+
+
+    { x: -36.5, y: 0, z: -8 },
+    { x: -39, y: 0, z: -13 },
+    { x: -39, y: 0, z: -30 },
+    { x: -41, y: 0, z: -45 },
+    { x: -31.7, y: 0, z: -33 },
+    { x: -24.3, y: 0, z: -36.5 },
+    { x: -24.3, y: 0, z: -27.5 },
+    { x: -28, y: 0, z: -20.5 },
+    { x: -11.4, y: 0, z: -13 },
+    { x: -22, y: 0, z: -12.5 },
+    { x: -15.5, y: 0, z: -25 },
+    { x: -16.4, y: 0, z: -35 },
+    { x: -4.7, y: 0, z: -21 },
+
+
+    { x: 7, y: 0, z: -38 },
+    { x: 10.2, y: 0, z: -11.5 },
+    { x: 21.5, y: 0, z: -12.8 },
+    { x: 33, y: 0, z: -10.5 },
+    { x: 37, y: 0, z: -8.3 },
+    { x: 12, y: 0, z: -29 },
+    { x: 22, y: 0, z: -29 },
+    { x: 22.3, y: 0, z: -41 },
+    { x: 42.8, y: 0, z: -40.8 },
+    { x: 42.8, y: 0, z: -29 },
+    { x: 41, y: 0, z: -17 },
+
+
+    { x: 14.4, y: 0, z: 6 },
+    { x: 18, y: 0, z: 4.2 },
+    { x: 43, y: 0, z: 6.5 },
+    { x: 28.5, y: 0, z: 12},
+    { x: 21.5, y: 0, z: 19},
+    { x: 17.7, y: 0, z: 27.5},
+    { x: 12.5, y: 0, z: 44},
+    { x: 42, y: 0, z: 42.5},
+    { x: 39.3, y: 0, z: 19},
+    { x: 36.5, y: 0, z: 27},
+    { x: 26, y: 0, z: 39.8},
+];
+
+woodCollider.forEach((position) => {
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); 
+    const colliderMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }); 
+    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
+    collider.position.set(position.x, position.y, position.z);
+    scene.add(collider);
+    colliderModels.push(collider); 
+});
 
 function createShadowMesh(size, position, opacity) {
     const shadowGeometry = new THREE.CircleGeometry(size.width, 32);
