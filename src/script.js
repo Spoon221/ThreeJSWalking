@@ -141,6 +141,7 @@ const colliderModels = [];
 const colliderPositions = [
     { x: 10.5, y: 0, z: 23.5 },
 ];
+
 const woodCollider = [
     { x: -4.3, y: 0, z: 15 },
     { x: 4, y: 0, z: 38.5 },
@@ -191,23 +192,23 @@ const woodCollider = [
     { x: 14.4, y: 0, z: 6 },
     { x: 18, y: 0, z: 4.2 },
     { x: 43, y: 0, z: 6.5 },
-    { x: 28.5, y: 0, z: 12},
-    { x: 21.5, y: 0, z: 19},
-    { x: 17.7, y: 0, z: 27.5},
-    { x: 12.5, y: 0, z: 44},
-    { x: 42, y: 0, z: 42.5},
-    { x: 39.3, y: 0, z: 19},
-    { x: 36.5, y: 0, z: 27},
-    { x: 26, y: 0, z: 39.8},
+    { x: 28.5, y: 0, z: 12 },
+    { x: 21.5, y: 0, z: 19 },
+    { x: 17.7, y: 0, z: 27.5 },
+    { x: 12.5, y: 0, z: 44 },
+    { x: 42, y: 0, z: 42.5 },
+    { x: 39.3, y: 0, z: 19 },
+    { x: 36.5, y: 0, z: 27 },
+    { x: 26, y: 0, z: 39.8 },
 ];
 
 woodCollider.forEach((position) => {
-    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1); 
-    const colliderMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }); 
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const colliderMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
     const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
     collider.position.set(position.x, position.y, position.z);
     scene.add(collider);
-    colliderModels.push(collider); 
+    colliderModels.push(collider);
 });
 
 function createShadowMesh(size, position, opacity) {
@@ -484,7 +485,7 @@ function createButton(position, url) {
 const button1 = createButton({ x: 6, y: 0.05, z: 19 }, 'https://github.com/Spoon221');
 const button2 = createButton({ x: 46, y: 0.05, z: -1.4 }, 'https://github.com/Spoon221/IFdead');
 const button3 = createButton({ x: 0.3, y: 0.05, z: -46.0 }, 'https://www.linkedin.com/in/евгений-симаков-7680b0345/');
-const button4 = createButton({ x: -45.5, y: 0.05, z: -1.1 }, 'https://react4-mvstlldxk-spoon221s-projects.vercel.app');
+const button4 = createButton({ x: -45.5, y: 0.05, z: -1.1 }, 'https://react4-spoon221s-projects.vercel.app/');
 
 button2.rotation.z = 29.8;
 button3.rotation.z = 0;
@@ -554,19 +555,19 @@ let trashModels = [];
 let bottleModels = [];
 
 const trashPositions = [
-    { x: 6, y: 0.2, z: 1.4 },
+    { x: 6, y: 0.2, z: 3.8 },
     { x: 5, y: 0.2, z: 23.0 },
-    { x: -3, y: 0.2, z: -27.0 },
-    { x: 4, y: 0.2, z: -27.0 },
-    { x: -23, y: 0.2, z: -5.5 },
+    { x: -4, y: 0.2, z: -27.0 },
+    { x: 6.5, y: 0.2, z: -27.0 },
+    { x: -23, y: 0.2, z: -8 },
 ];
 
 const bottlePositions = [
-    { x: 4, y: 0.2, z: 3.0 },
+    { x: 4, y: 0.2, z: 4 },
     { x: 4, y: 0.2, z: 22.0 },
-    { x: -24, y: 0.2, z: -5.0 },
+    { x: -24, y: 0.2, z: -8.0 },
     { x: 35, y: 0.2, z: -6.0 },
-    { x: 4.5, y: 0.2, z: -25.0 },
+    { x: 6.5, y: 0.2, z: -25.0 },
 ];
 
 const loaderTrash = new GLTFLoader();
@@ -595,6 +596,33 @@ bottlePositions.forEach(position => {
         console.error('Ошибка загрузки модели bottle:', error);
     });
 });
+
+const slowDownColliders = [
+    { position: { x: 28, y: 0, z: 25 }, size: { width: 43, height: 1, depth: 40 } },
+    { position: { x: -27, y: 0, z: 25 }, size: { width: 45, height: 1, depth: 40 } },
+    { position: { x: 28, y: 0, z: -29 }, size: { width: 40, height: 1, depth: 40 } },
+    { position: { x: -28, y: 0, z: -29 }, size: { width: 45, height: 1, depth: 40 } },
+];
+
+const slowDownCollidersMeshes = slowDownColliders.map(collider => {
+    const geometry = new THREE.BoxGeometry(collider.size.width, collider.size.height, collider.size.depth);
+    const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(collider.position.x, collider.position.y, collider.position.z);
+    scene.add(mesh);
+    return mesh;
+});
+
+let isInSlowDownZone = false;
+const slowDownFactor = 0.5;
+
+function checkSlowDownZone() {
+    const playerBox = new THREE.Box3().setFromObject(model);
+    isInSlowDownZone = slowDownCollidersMeshes.some(collider => {
+        const colliderBox = new THREE.Box3().setFromObject(collider);
+        return playerBox.intersectsBox(colliderBox);
+    });
+}
 
 let kickInProgress = false;
 let kickStartPosition = new THREE.Vector3();
@@ -857,12 +885,15 @@ function checkCollisions(newPosition) {
     return false;
 }
 
-function checkSnowCollision() {
-    if (snowColliders.length > 0) {
-        const playerBox = new THREE.Box3().setFromObject(model);
-        isInSnow = snowColliders.some(collider => playerBox.intersectsBox(collider));
-    }
-}
+window.addEventListener('resize', () => {
+    sizes.width = window.innerWidth;
+    sizes.height = window.innerHeight;
+    renderer.setSize(sizes.width, sizes.height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    camera.aspect = sizes.width / sizes.height;
+    camera.updateProjectionMatrix();
+});
 
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
@@ -873,22 +904,23 @@ const tick = () => {
         mixer.update(deltaTime);
     }
 
-    checkSnowCollision();
-
-    const globalDirection = new THREE.Vector3(0, 0, 0);
-    if (keys.w) globalDirection.z += 1;
-    if (keys.a) globalDirection.x += 1;
-    if (keys.d) globalDirection.x -= 1;
-
-    globalDirection.normalize();
-
     if (model) {
+        checkSlowDownZone();
+
+        const globalDirection = new THREE.Vector3(0, 0, 0);
+        if (keys.w) globalDirection.z += 1;
+        if (keys.a) globalDirection.x += 1;
+        if (keys.d) globalDirection.x -= 1;
+
+        globalDirection.normalize();
+
         const localDirection = globalDirection.clone().applyQuaternion(model.quaternion);
         localDirection.y = 0;
         localDirection.normalize();
 
         const currentSpeed = isInSnow ? speed * snowSpeedFactor : speed;
-        velocity.copy(localDirection).multiplyScalar(currentSpeed);
+        const effectiveSpeed = isInSlowDownZone ? currentSpeed * slowDownFactor : currentSpeed;
+        velocity.copy(localDirection).multiplyScalar(effectiveSpeed);
 
         const newPosition = model.position.clone().add(velocity);
 
