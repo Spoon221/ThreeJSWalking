@@ -51,7 +51,7 @@ const overlayMaterial = new THREE.ShaderMaterial({
     `
 });
 const overlay = new THREE.Mesh(overlayGeometry, overlayMaterial);
-//scene.add(overlay);
+scene.add(overlay);
 /**
  * Fog
  */
@@ -76,6 +76,7 @@ const snowflakeMaterial = new THREE.MeshBasicMaterial({
 
 const snowflakes = new THREE.InstancedMesh(snowflakeGeometry, snowflakeMaterial, snowflakeCount);
 
+// Установка матриц для снежинок
 for (let i = 0; i < snowflakeCount; i++) {
     const matrix = new THREE.Matrix4();
     const x = Math.random() * (maxX - minX) + minX;
@@ -87,7 +88,6 @@ for (let i = 0; i < snowflakeCount; i++) {
     matrix.scale(new THREE.Vector3(scale, scale, scale));
     snowflakes.setMatrixAt(i, matrix);
 }
-
 scene.add(snowflakes);
 
 function updateSnowflakes() {
@@ -120,7 +120,6 @@ function updateSnowflakes() {
  */
 let isInSnow = false;
 const snowSpeedFactor = 0.5;
-let snowColliders = [];
 
 loader.load('/models/pol.glb', (gltf) => {
     const floor = gltf.scene;
@@ -211,23 +210,6 @@ woodCollider.forEach((position) => {
     colliderModels.push(collider);
 });
 
-function createShadowMesh(size, position, opacity) {
-    const shadowGeometry = new THREE.CircleGeometry(size.width, 32);
-    const shadowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: opacity,
-        depthWrite: false
-    });
-
-    const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
-    shadowMesh.scale.set(2.45, size.height / size.width + 1, 2.45);
-    shadowMesh.position.set(position.x - 2, 0.01, position.z + 0.5);
-    shadowMesh.rotation.x = -Math.PI / 2;
-    shadowMesh.rotation.z = -Math.PI / 1.2;
-    return shadowMesh;
-}
-
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
     model.position.y = 1.6;
@@ -250,45 +232,14 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
     scene.add(collider);
 });
 
-/**
- * Floor
- */
+
 colliderPositions.forEach((position, index) => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
-
-        colliderModel.rotation.y = index === 1 ? Math.PI / 2 : 90;
-
+        colliderModel.rotation.y = 90;
         scene.add(colliderModel);
         colliderModels.push(colliderModel);
-
-        const shadowSizes = [
-            { width: 1.5, height: 0.75 },
-            { width: 1.2, height: 0.6 },
-        ];
-        const shadowOpacities = [0.15, 0.2];
-
-        shadowSizes.forEach((size, shadowIndex) => {
-            const shadowMesh = createShadowMesh(size, position, shadowOpacities[shadowIndex]);
-            shadowMesh.position.y += 0.1;
-
-            if (index === 1) {
-                if (shadowIndex === 0) {
-                    shadowMesh.rotation.z = 0;
-                    shadowMesh.position.z -= 0.5;
-                    shadowMesh.position.y -= 0.105;
-                } else {
-                    shadowMesh.rotation.z = 0;
-                    shadowMesh.position.z -= 0.5;
-                    shadowMesh.position.y -= 0.105;
-                }
-            } else {
-                shadowMesh.rotation.z = Math.PI / 4;
-            }
-
-            scene.add(shadowMesh);
-        });
     });
 });
 
@@ -302,7 +253,7 @@ for (let i = 0; i < wallCount; i++) {
     wallLoader.load('/models/wall.glb', (gltf) => {
         const wall = gltf.scene;
 
-        wall.scale.set(1, 1, wallThickness);
+        wall.scale.set(1.1, 1, wallThickness);
 
         wall.rotation.y = rotations[i];
 
@@ -444,6 +395,48 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
 directionalLight.position.set(5, 5, 5);
 scene.add(directionalLight);
+
+
+const lights = [];
+const spheres = [];
+const lightCount = 8;
+const lightPositions = [
+    { x: -4.2, y: 5.9, z: 14.7 },
+    { x: 3.8, y: 5.9, z: 38.2 },
+    { x: -16.5, y: 5.9, z: 5.8 },
+    { x: -36.3, y: 5.9, z: -8 },
+    { x: 18, y: 5.9, z: 4.3 },
+    { x: 37.2, y: 5.9, z: -8.2 },
+    { x: -4.65, y: 5.9, z: -20.5 },
+    { x: 6.8, y: 5.9, z: -37 },
+];
+
+for (let i = 0; i < lightCount; i++) {
+    const light = new THREE.DirectionalLight(0x808080, 0.5);
+    light.position.set(lightPositions[i].x, lightPositions[i].y, lightPositions[i].z);
+    light.castShadow = true;
+    scene.add(light);
+    lights.push(light);
+    const sphereGeometry = new THREE.SphereGeometry(0.9, 16, 16);
+    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.position.copy(light.position);
+    scene.add(sphere);
+    spheres.push(sphere);
+}
+
+function flickerLights() {
+    lights.forEach((light, index) => {
+        const isLightOn = Math.random() > 0.5;
+        light.intensity = isLightOn ? 0.5 : 0;
+        spheres[index].visible = isLightOn;
+    });
+
+    const randomDelay = Math.random() * 2000 + 500;
+    setTimeout(flickerLights, randomDelay);
+}
+
+flickerLights();
 
 /**
  * Sizes
@@ -895,6 +888,8 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
 });
 
+let collisionEnabled = true;
+
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
@@ -918,30 +913,31 @@ const tick = () => {
         localDirection.y = 0;
         localDirection.normalize();
 
-        const currentSpeed = isInSnow ? speed * snowSpeedFactor : speed;
-        const effectiveSpeed = isInSlowDownZone ? currentSpeed * slowDownFactor : currentSpeed;
-        velocity.copy(localDirection).multiplyScalar(effectiveSpeed);
-
-        const newPosition = model.position.clone().add(velocity);
-
-        if (!checkCollisions(newPosition)) {
-            model.position.copy(newPosition);
-        }
-
-        checkObjectCollision();
-
-        let rotationSpeed = 0.01;
-        if (keys.a || keys.d) {
-            rotationSpeed = 0.01;
-        }
-
         if (localDirection.length() > 0) {
+            let rotationSpeed = 0.02568;
+
             const targetRotationY = Math.atan2(localDirection.x, localDirection.z);
             const targetQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, targetRotationY, 0));
             const currentQuaternion = model.quaternion.clone();
 
             currentQuaternion.slerp(targetQuaternion, rotationSpeed);
             model.quaternion.copy(currentQuaternion);
+        }
+
+        const currentSpeed = isInSnow ? speed * snowSpeedFactor : speed;
+        const effectiveSpeed = isInSlowDownZone ? currentSpeed * slowDownFactor : currentSpeed;
+
+        if (keys.w) {
+            const forwardDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(model.quaternion);
+            forwardDirection.y = 0;
+            forwardDirection.normalize();
+
+            const forwardVelocity = forwardDirection.clone().multiplyScalar(effectiveSpeed);
+            const forwardPosition = model.position.clone().add(forwardVelocity);
+
+            if (!checkCollisions(forwardPosition)) {
+                model.position.copy(forwardPosition);
+            }
         }
 
         if (keys.s) {
@@ -956,11 +952,12 @@ const tick = () => {
                 model.position.copy(backwardPosition);
             }
         }
-
+        checkObjectCollision();
         const cameraOffset = new THREE.Vector3(0, 3.6, -5.4);
         cameraOffset.applyQuaternion(model.quaternion);
-        camera.position.copy(model.position).add(cameraOffset);
+        const targetCameraPosition = model.position.clone().add(cameraOffset);
 
+        camera.position.lerp(targetCameraPosition, 0.1);
         camera.lookAt(model.position);
     }
 
@@ -972,5 +969,4 @@ const tick = () => {
     console.log(renderer.info.render.calls);
     window.requestAnimationFrame(tick);
 };
-
 tick();
