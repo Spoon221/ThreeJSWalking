@@ -210,11 +210,10 @@ woodCollider.forEach((position) => {
     colliderModels.push(collider);
 });
 
-
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
-    model.position.set(0.4, 1.6, 0.35); // Устанавливаем позицию модели: чуть правее по X и назад по Z
-    model.scale.set(1.4, 1.4, 1.4); // Масштабируем модель
+    model.position.y = 1.6;
+    model.scale.set(1.4, 1.4, 1.4);
     colliderModels.push(model);
     scene.add(model);
 
@@ -225,11 +224,12 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
         currentAction = mixer.clipAction(animations[0]);
     }
 
-    // Создание геометрии коллайдера
-    const colliderGeometry = new THREE.BoxGeometry(4.6, 0.5, 1);
-    const collider = new THREE.Mesh(colliderGeometry, hairMaterial);
-    collider.scale.set(0.45, 1, 0.45); // Масштабируем коллайдер
-    scene.add(collider); // Добавляем коллайдер в сцену
+    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
+    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
+    collider.position.copy(model.position);
+    collider.scale.set(0.45, 1, 0.45);
+    scene.add(collider);
 });
 
 
@@ -296,7 +296,7 @@ const imagesData = [
         scale: { x: 1.85, y: 1, z: 1 }
     },
     {
-        url: '/models/modelsIf.png',
+        url: '/models/image 60.png',
         position: { x: 47.7, y: 2.6, z: -2.8 },
         rotation: { x: 0, y: -90 * (Math.PI / 180), z: 0 },
         scale: { x: 1, y: 1, z: 1 }
@@ -352,7 +352,7 @@ const imagesData = [
     {
         url: '/models/logounity.png',
         position: { x: 1.75, y: 4.3, z: 47.8 },
-        rotation: { x: 0, y: 3.2, z: 0 },
+        rotation: { x: 0, y: .2, z: 0 },
         scale: { x: 0.35, y: 0.45, z: 1 }
     },
     {
@@ -407,8 +407,8 @@ const lightPositions = [
     { x: -36.3, y: 5.9, z: -8 },
     { x: 18, y: 5.9, z: 4.3 },
     { x: 37.2, y: 5.9, z: -8.2 },
-    { x: -4.65, y: 5.9, z: -20.5 },
-    { x: 6.8, y: 5.9, z: -37 },
+    { x: -4.65, y: 5.9, z: -20.7 },
+    { x: 6.8, y: 5.9, z: -38 },
 ];
 
 for (let i = 0; i < lightCount; i++) {
@@ -556,11 +556,10 @@ const trashPositions = [
 ];
 
 const bottlePositions = [
-    { x: 4, y: 0.2, z: 4 },
-    { x: 4, y: 0.2, z: 22.0 },
-    { x: -24, y: 0.2, z: -8.0 },
-    { x: 35, y: 0.2, z: -6.0 },
-    { x: 6.5, y: 0.2, z: -25.0 },
+    { x: -4, y: 0.2, z: 28.0 },
+    { x: -24, y: 0.2, z: 5.0 },
+    { x: 35, y: 0.2, z: -8.0 },
+    { x: 6.5, y: 0.2, z: -42.0 },
 ];
 
 const loaderTrash = new GLTFLoader();
@@ -759,7 +758,7 @@ function kickBottle(bottle, index) {
     direction.y = 0;
     direction.normalize();
 
-    const kickForce = 8.8;
+    const kickForce = 10;
     kickStartPosition.copy(bottle.position);
     kickEndPosition.copy(bottle.position).add(direction.clone().multiplyScalar(kickForce));
     kickStartTime = performance.now();
@@ -948,7 +947,7 @@ const tick = () => {
     checkTrashOverlap();
 
     renderer.render(scene, camera);
-    console.log(renderer.info.render.calls);
+    // console.log(renderer.info.render.calls);
     window.requestAnimationFrame(tick);
 };
 
