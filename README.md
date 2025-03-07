@@ -1,7 +1,8 @@
 # Three.js Journey
 
+## Project Link: [Game](https://simakovevgeny.vercel.app/)
+
 ## Setup
-Download [Node.js](https://nodejs.org/en/download/).
 Run this followed commands:
 
 ``` bash
