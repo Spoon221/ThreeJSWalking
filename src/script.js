@@ -76,7 +76,6 @@ const snowflakeMaterial = new THREE.MeshBasicMaterial({
 
 const snowflakes = new THREE.InstancedMesh(snowflakeGeometry, snowflakeMaterial, snowflakeCount);
 
-// Установка матриц для снежинок
 for (let i = 0; i < snowflakeCount; i++) {
     const matrix = new THREE.Matrix4();
     const x = Math.random() * (maxX - minX) + minX;
@@ -88,6 +87,7 @@ for (let i = 0; i < snowflakeCount; i++) {
     matrix.scale(new THREE.Vector3(scale, scale, scale));
     snowflakes.setMatrixAt(i, matrix);
 }
+
 scene.add(snowflakes);
 
 function updateSnowflakes() {
@@ -210,10 +210,11 @@ woodCollider.forEach((position) => {
     colliderModels.push(collider);
 });
 
+
 gltfLoader.load('/models/pet.glb', (gltf) => {
     model = gltf.scene;
-    model.position.y = 1.6;
-    model.scale.set(1.4, 1.4, 1.4);
+    model.position.set(0.4, 1.6, 0.35); // Устанавливаем позицию модели: чуть правее по X и назад по Z
+    model.scale.set(1.4, 1.4, 1.4); // Масштабируем модель
     colliderModels.push(model);
     scene.add(model);
 
@@ -224,16 +225,15 @@ gltfLoader.load('/models/pet.glb', (gltf) => {
         currentAction = mixer.clipAction(animations[0]);
     }
 
-    const colliderGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const colliderMaterial = new THREE.MeshBasicMaterial({ visible: false });
-    const collider = new THREE.Mesh(colliderGeometry, colliderMaterial);
-    collider.position.copy(model.position);
-    collider.scale.set(0.45, 1, 0.45);
-    scene.add(collider);
+    // Создание геометрии коллайдера
+    const colliderGeometry = new THREE.BoxGeometry(4.6, 0.5, 1);
+    const collider = new THREE.Mesh(colliderGeometry, hairMaterial);
+    collider.scale.set(0.45, 1, 0.45); // Масштабируем коллайдер
+    scene.add(collider); // Добавляем коллайдер в сцену
 });
 
 
-colliderPositions.forEach((position, index) => {
+colliderPositions.forEach((position) => {
     gltfLoader.load('/models/tend.glb', (gltf) => {
         const colliderModel = gltf.scene;
         colliderModel.position.set(position.x, position.y, position.z);
@@ -888,8 +888,6 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
 });
 
-let collisionEnabled = true;
-
 const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
@@ -902,7 +900,7 @@ const tick = () => {
     if (model) {
         checkSlowDownZone();
 
-        const globalDirection = new THREE.Vector3(0, 0, 0);
+        const globalDirection = new THREE.Vector3();
         if (keys.w) globalDirection.z += 1;
         if (keys.a) globalDirection.x += 1;
         if (keys.d) globalDirection.x -= 1;
@@ -914,49 +912,33 @@ const tick = () => {
         localDirection.normalize();
 
         if (localDirection.length() > 0) {
-            let rotationSpeed = 0.02568;
-
             const targetRotationY = Math.atan2(localDirection.x, localDirection.z);
             const targetQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, targetRotationY, 0));
-            const currentQuaternion = model.quaternion.clone();
-
-            currentQuaternion.slerp(targetQuaternion, rotationSpeed);
-            model.quaternion.copy(currentQuaternion);
+            model.quaternion.slerp(targetQuaternion, 0.02568);
         }
 
         const currentSpeed = isInSnow ? speed * snowSpeedFactor : speed;
         const effectiveSpeed = isInSlowDownZone ? currentSpeed * slowDownFactor : currentSpeed;
 
-        if (keys.w) {
-            const forwardDirection = new THREE.Vector3(0, 0, 1).applyQuaternion(model.quaternion);
-            forwardDirection.y = 0;
-            forwardDirection.normalize();
+        if (keys.w || keys.s) {
+            const direction = keys.w ? 1 : -1;
+            const moveDirection = new THREE.Vector3(0, 0, direction).applyQuaternion(model.quaternion);
+            moveDirection.y = 0;
+            moveDirection.normalize();
 
-            const forwardVelocity = forwardDirection.clone().multiplyScalar(effectiveSpeed);
-            const forwardPosition = model.position.clone().add(forwardVelocity);
+            const velocity = moveDirection.clone().multiplyScalar(effectiveSpeed);
+            const newPosition = model.position.clone().add(velocity);
 
-            if (!checkCollisions(forwardPosition)) {
-                model.position.copy(forwardPosition);
+            if (!checkCollisions(newPosition)) {
+                model.position.copy(newPosition);
             }
         }
 
-        if (keys.s) {
-            const backwardDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(model.quaternion);
-            backwardDirection.y = 0;
-            backwardDirection.normalize();
-
-            const backwardVelocity = backwardDirection.clone().multiplyScalar(currentSpeed);
-            const backwardPosition = model.position.clone().add(backwardVelocity);
-
-            if (!checkCollisions(backwardPosition)) {
-                model.position.copy(backwardPosition);
-            }
-        }
         checkObjectCollision();
+
         const cameraOffset = new THREE.Vector3(0, 3.6, -5.4);
         cameraOffset.applyQuaternion(model.quaternion);
         const targetCameraPosition = model.position.clone().add(cameraOffset);
-
         camera.position.lerp(targetCameraPosition, 0.1);
         camera.lookAt(model.position);
     }
@@ -969,4 +951,5 @@ const tick = () => {
     console.log(renderer.info.render.calls);
     window.requestAnimationFrame(tick);
 };
+
 tick();
